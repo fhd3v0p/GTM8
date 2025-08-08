@@ -1,4 +1,5 @@
 import 'dart:html' as html;
+import 'dart:convert';
 import 'dart:js' as js;
 import 'package:flutter/foundation.dart';
 
@@ -178,10 +179,67 @@ class TelegramWebAppService {
 
       // ignore: avoid_print
       print('  ❌ User data is null');
+      // Fallback: пробуем разобрать tgWebAppData из URL
+      try {
+        final parsed = _parseTgWebAppDataFromUrl();
+        if (parsed != null && parsed.containsKey('user')) {
+          final userJson = parsed['user'];
+          final decoded = (userJson is String) ? jsonDecode(userJson) : userJson;
+          if (decoded is Map) {
+            final map = {
+              'id': decoded['id'],
+              'first_name': decoded['first_name'],
+              'last_name': decoded['last_name'],
+              'username': decoded['username'],
+              'language_code': decoded['language_code'],
+            };
+            // ignore: avoid_print
+            print('  ✅ Fallback from tgWebAppData: $map');
+            return map;
+          }
+        }
+      } catch (e2) {
+        // ignore: avoid_print
+        print('  Fallback parse tgWebAppData error: $e2');
+      }
       return null;
     } catch (e) {
       // ignore: avoid_print
       print('Error getting user data: $e');
+      return null;
+    }
+  }
+
+  // Парсим tgWebAppData из query или hash
+  static Map<String, dynamic>? _parseTgWebAppDataFromUrl() {
+    try {
+      // 1) query
+      String? raw = Uri.base.queryParameters['tgWebAppData'];
+      // 2) иногда кладут в hash (#tgWebAppData=...)
+      if (raw == null || raw.isEmpty) {
+        final frag = Uri.base.fragment; // без leading '#'
+        if (frag.contains('tgWebAppData=')) {
+          final idx = frag.indexOf('tgWebAppData=');
+          if (idx >= 0) {
+            raw = frag.substring(idx + 'tgWebAppData='.length);
+          }
+        }
+      }
+      if (raw == null || raw.isEmpty) return null;
+      final decoded = Uri.decodeFull(raw);
+      final Map<String, dynamic> out = {};
+      for (final part in decoded.split('&')) {
+        final kv = part.split('=');
+        if (kv.isEmpty) continue;
+        final key = Uri.decodeComponent(kv[0]);
+        final value = kv.length > 1 ? Uri.decodeComponent(kv[1]) : '';
+        out[key] = value;
+      }
+      // Отладка
+      // ignore: avoid_print
+      print('  Parsed tgWebAppData map: ${out.keys.toList()}');
+      return out;
+    } catch (_) {
       return null;
     }
   }
