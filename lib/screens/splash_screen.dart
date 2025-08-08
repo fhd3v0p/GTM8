@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
 import 'welcome_screen.dart';
 import '../services/telegram_webapp_service.dart';
 import 'dart:math';
@@ -161,72 +160,30 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-  late VideoPlayerController _videoController;
-  bool _isVideoInitialized = false;
-  bool _isVideoFinished = false;
+  bool _navigated = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeVideo();
     _expandTelegramWebApp();
+    // Авто‑переход через 2.5 сек
+    Future.delayed(const Duration(milliseconds: 2500), () {
+      if (mounted && !_navigated) _navigateToWelcome();
+    });
   }
 
   void _expandTelegramWebApp() {
     // Открываем Mini App на весь экран
-    // Заменяем на прямые вызовы сервиса
-    // (initializeWebApp уже вызывает expand/ready глобально)
-  }
-
-  Future<void> _initializeVideo() async {
     try {
-      _videoController = VideoPlayerController.asset('assets/GTM.mp4');
-      
-      await _videoController.initialize();
-      
-      // Устанавливаем цикличное воспроизведение
-      _videoController.setLooping(true);
-      
-      // Слушаем завершение видео
-      _videoController.addListener(() {
-        if (_videoController.value.position >= _videoController.value.duration) {
-          if (!_isVideoFinished) {
-            setState(() {
-              _isVideoFinished = true;
-            });
-            _navigateToWelcome();
-          }
-        }
-      });
-      
-      setState(() {
-        _isVideoInitialized = true;
-      });
-      
-      // Запускаем видео
-      await _videoController.play();
-      
-      // Автоматический переход через 5 секунд (если видео короче)
-      Future.delayed(const Duration(seconds: 5), () {
-        if (!_isVideoFinished) {
-          _navigateToWelcome();
-        }
-      });
-      
-    } catch (e) {
-      print('Error initializing video: $e');
-      // Fallback: переходим к welcome screen
-      _navigateToWelcome();
-    }
+      TelegramWebAppService.expand();
+      TelegramWebAppService.ready();
+      TelegramWebAppService.disableVerticalSwipe();
+    } catch (_) {}
   }
 
   void _navigateToWelcome() {
     print('DEBUG: Переход к WelcomeScreen');
-    if (!_isVideoFinished) {
-      setState(() {
-        _isVideoFinished = true;
-      });
-    }
+    _navigated = true;
     
     try {
       Navigator.of(context).pushReplacement(
@@ -249,7 +206,6 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   void dispose() {
-    _videoController.dispose();
     super.dispose();
   }
 
@@ -259,19 +215,7 @@ class _SplashScreenState extends State<SplashScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Видео на весь экран с увеличением на 25%
-          if (_isVideoInitialized)
-            Center(
-              child: Transform.scale(
-                scale: 1.25, // Увеличиваем на 25% (было 15%)
-                child: AspectRatio(
-                  aspectRatio: _videoController.value.aspectRatio,
-                  child: VideoPlayer(_videoController),
-                ),
-              ),
-            )
-          else
-            const OrbitingAvatarsLoader(),
+          const OrbitingAvatarsLoader(),
           
           // Кнопка пропуска - поднята на 10% от экрана
           Positioned(
