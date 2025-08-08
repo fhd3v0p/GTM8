@@ -35,7 +35,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
-TELEGRAM_FOLDER_LINK = os.getenv('TELEGRAM_FOLDER_LINK', 'https://t.me/addlist/qRX5VmLZF7E3M2U9')
+TELEGRAM_FOLDER_LINK = os.getenv('TELEGRAM_FOLDER_LINK', 'https://t.me/addlist/6HRxDLe0Gdk2M2E1')
 WEBAPP_URL = os.getenv('WEBAPP_URL', 'https://gtm.baby')
 WEBAPP_VERSION = os.getenv('WEBAPP_VERSION', '')
 ADMIN_ID = int(os.getenv('ADMIN_ID', '6358105675'))
@@ -268,8 +268,19 @@ async def cmd_stats(message: Message):
     await message.answer(text, parse_mode="HTML")
 
 
+async def cmd_start_text(message: Message):
+    """Обработчик текста "start" без слеша (/)."""
+    await cmd_start(message)
+
+
+async def handle_any_message(message: Message):
+    """Фолбэк: подтверждаем, что апдейты доходят, подсказываем про /start."""
+    logger.info(f"Update received: chat={message.chat.id} text={message.text!r}")
+    await message.answer("🔹 Напишите /start, чтобы начать работу с ботом")
+
 def register_handlers(dp: Dispatcher):
     dp.message.register(cmd_start, Command("start"))
+    dp.message.register(cmd_start_text, F.text.casefold() == "start")
     dp.message.register(cmd_check, Command("check"))
     dp.message.register(cmd_tickets, Command("tickets"))
     dp.message.register(cmd_folder, Command("folder"))
@@ -277,6 +288,7 @@ def register_handlers(dp: Dispatcher):
     dp.message.register(cmd_help, Command("help"))
     dp.message.register(cmd_stats, Command("stats"))
     dp.message.register(cmd_invite, F.text == "🃏 Пригласить друзей")
+    dp.message.register(handle_any_message)
 
 
 async def main():
