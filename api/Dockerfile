@@ -18,10 +18,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Копирование исходного кода
 COPY . .
 
-# Создание директории для логов
-RUN mkdir -p /app/logs
-ENV GUNICORN_ACCESSLOG=/app/logs/api_access.log \
-    GUNICORN_ERRORLOG=/app/logs/api_error.log
+# Логи выводим в stdout/stderr (без записи в файлы внутри контейнера)
+ENV GUNICORN_ACCESSLOG=- \
+    GUNICORN_ERRORLOG=-
 
 # Создание пользователя для безопасности
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app

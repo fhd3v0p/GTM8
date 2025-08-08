@@ -28,15 +28,10 @@ from supabase_config import validate_supabase_config
 
 load_dotenv()
 
-log_dir = os.getenv('BOT_LOG_DIR', '/app/logs')
-os.makedirs(log_dir, exist_ok=True)
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO,
-    handlers=[
-        logging.FileHandler(os.path.join(log_dir, 'bot.log')),
-        logging.StreamHandler()
-    ]
+    handlers=[logging.StreamHandler()]
 )
 logger = logging.getLogger(__name__)
 
