@@ -58,10 +58,8 @@ SUBSCRIPTION_CHANNELS: List[dict] = [
 if not validate_supabase_config():
     logger.error("❌ Неверная конфигурация Supabase")
 
-# HTTP сессия с увеличенными таймаутами для Telegram API
-_session_timeout = ClientTimeout(total=30)
-_session = AiohttpSession(timeout=_session_timeout)
-bot = Bot(token=TELEGRAM_BOT_TOKEN, session=_session)
+# Используем дефолтную HTTP-сессию aiogram (избегаем несовместимости таймаутов)
+bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
 
 def get_webapp_keyboard() -> InlineKeyboardMarkup:
