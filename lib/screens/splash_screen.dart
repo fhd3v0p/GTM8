@@ -170,6 +170,12 @@ class _SplashScreenState extends State<SplashScreen> {
     Future.delayed(const Duration(milliseconds: 2500), () {
       if (mounted && !_navigated) _navigateToWelcome();
     });
+    // Дублируем expand после построения первого кадра
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        TelegramWebAppService.expand();
+      } catch (_) {}
+    });
   }
 
   void _expandTelegramWebApp() {

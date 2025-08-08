@@ -40,6 +40,8 @@
       margin: 0;
       padding: 0;
       height: 100%;
+      height: 100vh;       /* для мобильных */
+      height: 100dvh;      /* для iOS Safari/новых браузеров */
       overflow: hidden; /* запретить скролл */
       background: #000;
     }
@@ -49,17 +51,17 @@
       position: fixed;
       inset: 0;
       display: flex;
-      align-items: flex-start; /* слева по вертикали */
-      justify-content: flex-start; /* слева по горизонтали */
+      align-items: center;     /* по центру экрана вертикально */
+      justify-content: center; /* по центру экрана горизонтально */
       background: #000;
       z-index: 9999;
       user-select: none;
-      padding: 6vh 4vw; /* небольшой отступ от края */
+      padding: 0;
     }
     .splash {
       font-family: 'NauryzKeds', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, sans-serif;
       color: #fff;
-      text-align: left; /* выравнивание текста слева */
+      text-align: left;   /* линии слева между собой */
       line-height: 0.9;
     }
     .row {
@@ -105,6 +107,13 @@
       };
       // На всякий случай таймер авто-скрытия
       setTimeout(removeSplash, 3500);
+      // Форсируем высоту контейнера на всю видимую область
+      const setFullHeight = () => {
+        const c = document.getElementById('flutter_container');
+        if (c) { c.style.height = window.innerHeight + 'px'; }
+      };
+      setFullHeight();
+      window.addEventListener('resize', setFullHeight);
     });
     // Останавливаем всплытие touchmove
     document.addEventListener('touchmove', function(e) { e.stopPropagation(); }, { passive: false });
