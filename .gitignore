@@ -1,0 +1,31 @@
+# Centralized environment file (do not commit)
+.env
+
+# Logs
+logs/
+*.log
+
+# Python
+__pycache__/
+*.pyc
+
+# Flutter build artifacts
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+
+# iOS/macOS
+ios/Pods/
+macos/Pods/
+*.xcworkspace
+DerivedData/
+
+# Android
+android/.gradle/
+android/build/
+
+# IDE
+.vscode/
+.idea/

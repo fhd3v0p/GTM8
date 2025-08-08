@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="gtm_app">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>gtm_app</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden; /* запретить скролл */
+      background: #000;
+    }
+    #splash-root {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      z-index: 9999;
+      user-select: none;
+    }
+    .splash {
+      font-family: 'NauryzKeds', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, sans-serif;
+      color: #fff;
+      text-align: center;
+      line-height: 0.9;
+    }
+    .row {
+      display: block;
+      font-weight: 800;
+      letter-spacing: 2px;
+    }
+    .row-1 { font-size: clamp(42px, 14vw, 120px); opacity: 0; transform: translateY(-20px); animation: fadeDown 800ms ease forwards 100ms; }
+    .row-2 { font-size: clamp(36px, 12vw, 100px); opacity: 0; transform: translateY(60px); animation: slideUp 750ms cubic-bezier(.2,.8,.2,1) forwards 700ms; }
+    .row-3 { font-size: clamp(36px, 12vw, 100px); opacity: 0; transform: translateY(20px); animation: fadeUp 700ms ease forwards 1250ms; }
+    
+    .word {
+      display: inline-block;
+    }
+    .light { color: #ffffff; }
+    .dim   { color: rgba(255,255,255,0.75); }
+    
+    @keyframes fadeDown { to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeUp   { to { opacity: 1; transform: translateY(0); } }
+    @keyframes slideUp  { to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+  <div id="splash-root">
+    <div class="splash">
+      <div class="row row-1">
+        <span class="word"><span class="light">G</span><span class="dim">OTHAM'S</span></span>
+      </div>
+      <div class="row row-2">
+        <span class="word"><span class="light">T</span><span class="dim">OP</span></span>
+      </div>
+      <div class="row row-3">
+        <span class="word"><span class="light">M</span><span class="dim">ODEL</span></span>
+      </div>
+    </div>
+  </div>
+  <script>
+    // Скрываем сплэш, когда Flutter загрузится
+    window.addEventListener('load', function() {
+      const removeSplash = () => {
+        const el = document.getElementById('splash-root');
+        if (el) el.style.display = 'none';
+      };
+      // На всякий случай таймер авто-скрытия
+      setTimeout(removeSplash, 3500);
+    });
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
