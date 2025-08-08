@@ -2,6 +2,7 @@ import 'dart:html' as html;
 import 'dart:convert';
 import 'dart:js' as js;
 import 'package:flutter/foundation.dart';
+import 'package:telegram_web_app/telegram_web_app.dart';
 
 class TelegramWebAppService {
   // Определяем, что приложение запущено в Telegram WebApp
@@ -71,6 +72,12 @@ class TelegramWebAppService {
   }
 
   static String? getUserId() {
+    try {
+      final t = TelegramWebApp.instance;
+      if (t.isSupported && t.initDataUnsafe?.user?.id != null) {
+        return t.initDataUnsafe!.user!.id.toString();
+      }
+    } catch (_) {}
     final data = getUserData();
     return data?['id']?.toString();
   }
