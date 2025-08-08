@@ -45,6 +45,7 @@ TELEGRAM_FOLDER_LINK = os.getenv('TELEGRAM_FOLDER_LINK', 'https://t.me/addlist/6
 WEBAPP_URL = os.getenv('WEBAPP_URL', 'https://gtm.baby')
 WEBAPP_VERSION = os.getenv('WEBAPP_VERSION', '')
 ADMIN_ID = int(os.getenv('ADMIN_ID', '6358105675'))
+LOG_CHAT_ID = int(os.getenv('TELEGRAM_LOG_CHAT_ID', '0'))
 
 # 9 каналов
 SUBSCRIPTION_CHANNELS: List[dict] = [
@@ -94,6 +95,14 @@ async def get_or_create_referral_code(telegram_id: int) -> str:
     return code
 
 
+async def log_to_admin(text: str):
+    try:
+        if LOG_CHAT_ID:
+            await bot.send_message(chat_id=LOG_CHAT_ID, text=text)
+    except Exception as e:
+        logger.warning(f"Не удалось отправить лог в админ-чат: {e}")
+
+
 async def cmd_start(message: Message):
     user = message.from_user
     # Создаём/обновляем пользователя в БД (до реф-логики)
@@ -121,6 +130,11 @@ async def cmd_start(message: Message):
         "Нажми «🔮 Open GTM», чтобы ворваться!"
     )
     await message.answer(welcome_message, reply_markup=get_webapp_keyboard())
+    # Лог в админ-чат о старте пользователя
+    try:
+        await log_to_admin(f"/start from {user.id} @{user.username or ''}")
+    except Exception:
+        pass
     # пользователь уже сохранён выше
 
 
@@ -308,6 +322,11 @@ async def main():
         await bot.delete_webhook(drop_pending_updates=True)
     except Exception as e:
         logger.warning(f"Не удалось удалить webhook перед polling: {e}")
+    # Информируем админ-чат о запуске бота
+    try:
+        await log_to_admin("🚀 Бот запущен и перешёл на polling")
+    except Exception:
+        pass
     # Устанавливаем команды бота (не критично, но полезно)
     try:
         from aiogram.types import BotCommand
