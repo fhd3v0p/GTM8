@@ -20,6 +20,8 @@ COPY . .
 
 # Создание директории для логов
 RUN mkdir -p /app/logs
+ENV GUNICORN_ACCESSLOG=/app/logs/api_access.log \
+    GUNICORN_ERRORLOG=/app/logs/api_error.log
 
 # Создание пользователя для безопасности
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
@@ -29,4 +31,4 @@ USER appuser
 EXPOSE 5000
 
 # Запуск приложения (хост/порт берём из переменных окружения API_HOST/API_PORT)
-CMD ["/bin/sh", "-c", "gunicorn --bind ${API_HOST:-0.0.0.0}:${API_PORT:-5000} --workers 4 --timeout 120 rating_api:app"]
+CMD ["/bin/sh", "-c", "gunicorn --bind ${API_HOST:-0.0.0.0}:${API_PORT:-5000} --workers 4 --timeout 120 --access-logfile ${GUNICORN_ACCESSLOG} --error-logfile ${GUNICORN_ERRORLOG} rating_api:app"]

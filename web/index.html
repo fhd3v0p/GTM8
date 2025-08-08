@@ -49,16 +49,17 @@
       position: fixed;
       inset: 0;
       display: flex;
-      align-items: center;
-      justify-content: center;
+      align-items: flex-start; /* слева по вертикали */
+      justify-content: flex-start; /* слева по горизонтали */
       background: #000;
       z-index: 9999;
       user-select: none;
+      padding: 6vh 4vw; /* небольшой отступ от края */
     }
     .splash {
       font-family: 'NauryzKeds', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, sans-serif;
       color: #fff;
-      text-align: center;
+      text-align: left; /* выравнивание текста слева */
       line-height: 0.9;
     }
     .row {
