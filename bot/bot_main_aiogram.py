@@ -20,6 +20,8 @@ from aiogram.types import (
 )
 from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.client.session.aiohttp import AiohttpSession
+from aiohttp import ClientTimeout
 
 from supabase_client import supabase_client
 from supabase_config import validate_supabase_config
@@ -54,7 +56,10 @@ SUBSCRIPTION_CHANNELS: List[dict] = [
 if not validate_supabase_config():
     logger.error("❌ Неверная конфигурация Supabase")
 
-bot = Bot(token=TELEGRAM_BOT_TOKEN)
+# HTTP сессия с увеличенными таймаутами для Telegram API
+_session_timeout = ClientTimeout(total=30)
+_session = AiohttpSession(timeout=_session_timeout)
+bot = Bot(token=TELEGRAM_BOT_TOKEN, session=_session)
 
 
 def get_webapp_keyboard() -> InlineKeyboardMarkup:
@@ -280,6 +285,23 @@ async def main():
     dp = Dispatcher()
     register_handlers(dp)
     logger.info("🚀 Запуск GTM Supabase aiogram Bot...")
+    # На всякий случай удаляем вебхук, чтобы гарантировать polling
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+    except Exception as e:
+        logger.warning(f"Не удалось удалить webhook перед polling: {e}")
+    # Устанавливаем команды бота (не критично, но полезно)
+    try:
+        from aiogram.types import BotCommand
+        await bot.set_my_commands([
+            BotCommand(command="start", description="Запуск GTM"),
+            BotCommand(command="check", description="Проверить подписки"),
+            BotCommand(command="tickets", description="Мои билеты"),
+            BotCommand(command="invite", description="Пригласить друзей"),
+            BotCommand(command="help", description="Помощь"),
+        ])
+    except Exception as e:
+        logger.warning(f"Не удалось установить команды бота: {e}")
     await dp.start_polling(bot)
 
 

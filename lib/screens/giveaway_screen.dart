@@ -3,15 +3,11 @@ import 'package:flutter/gestures.dart';
 import 'role_selection_screen.dart';
 // import 'invite_friends_screen.dart'; // Временно убрано
 import 'dart:async';
-import 'dart:convert';
 import 'dart:html' as html;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/foundation.dart';
 import '../services/telegram_webapp_service.dart';
-import 'package:http/http.dart' as http;
-import '../config/api_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/supabase_service.dart';
 import '../services/api_service.dart';
 
 class GiveawayScreen extends StatefulWidget {
@@ -57,7 +53,6 @@ class _GiveawayScreenState extends State<GiveawayScreen> {
     });
     _loadSavedState();
     _fetchUserTickets();
-    _fetchGiveawayStatus();
     TelegramWebAppService.disableVerticalSwipe();
   }
 
@@ -75,11 +70,6 @@ class _GiveawayScreenState extends State<GiveawayScreen> {
     try {
       final userId = TelegramWebAppService.getUserId();
       if (userId == null) return;
-      // DEBUG: базовая информация о подключении к Supabase REST
-      // ignore: avoid_print
-      print('[GIVEAWAY] Supabase REST base: ${ApiConfig.apiBaseUrl}');
-      // ignore: avoid_print
-      print('[GIVEAWAY] Supabase URL: ${ApiConfig.supabaseUrl}');
       final prefs = await SharedPreferences.getInstance();
       final lastTicketCheck = prefs.getInt('last_ticket_check_$userId') ?? 0;
       final now = DateTime.now().millisecondsSinceEpoch;
@@ -193,39 +183,6 @@ class _GiveawayScreenState extends State<GiveawayScreen> {
     }
   }
 
-  Future<void> _fetchGiveawayStatus() async {
-    try {
-      final userId = TelegramWebAppService.getUserId();
-      if (userId == null) return;
-      final response = await http.get(Uri.parse('${ApiConfig.apiBaseUrl}/giveaway_status?user_id=eq.$userId'));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data is List && data.isNotEmpty) {
-          final status = data[0];
-          final isInFolder = status['is_in_folder'] == true || status['is_in_folder'] == 1;
-          final invitedFriends = (status['invited_friends'] ?? 0) as int;
-          
-          // Ограничиваем количество друзей максимум 10
-          final limitedInvitedFriends = invitedFriends > 10 ? 10 : invitedFriends;
-          
-          setState(() {
-            // Задание 1: Подписка на папку
-            folderCounter = isInFolder ? '1/1' : '0/1';
-            folderCounterColor = isInFolder ? Colors.green : Colors.white.withOpacity(0.7);
-            
-            // Задание 2: Приглашение друзей (x/10)
-            friendsCounter = '$limitedInvitedFriends/10';
-            friendsCounterColor = limitedInvitedFriends > 0 ? Colors.green : Colors.white.withOpacity(0.7);
-            
-            _giveawayTickets = (isInFolder ? 1 : 0) + limitedInvitedFriends;
-          });
-        }
-      }
-    } catch (e) {
-      print('❌ [DEBUG] Error fetching giveaway status: $e');
-    }
-  }
-
   @override
   void dispose() {
     _timer.cancel();
@@ -275,26 +232,7 @@ class _GiveawayScreenState extends State<GiveawayScreen> {
     return "${d.inHours}:${twoDigits(d.inMinutes.remainder(60))}:${twoDigits(d.inSeconds.remainder(60))}";
   }
 
-  Future<void> _logTaskCompletion(String userId, String taskName, int taskNumber) async {
-    try {
-      // Отправляем запрос на сервер для логирования
-      final response = await http.post(
-        Uri.parse('${ApiConfig.apiBaseUrl}/log-task-completion'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'user_id': userId,
-          'task_name': taskName,
-          'task_number': taskNumber,
-        }),
-      );
-
-      if (response.statusCode != 200) {
-        print('Error logging task completion: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error logging task completion: $e');
-    }
-  }
+  // logging of tasks to Supabase removed to avoid direct REST calls
 
   // Future<void> _logFolderSubscription(String userId) async {}
 
@@ -871,7 +809,7 @@ $shareLink
                               }
                                // visual flag no longer used
                               // Логика чека выполняется отдельной кнопкой ЧЕК; здесь только открываем папку и обновляем статус
-                              await _fetchGiveawayStatus();
+                              await _fetchUserTickets();
                             },
                           ),
                           _TaskTile(
@@ -893,17 +831,8 @@ $shareLink
                               // Показываем уведомление об успехе
                               TelegramWebAppService.showAlert('Отлично! Список контактов открыт');
                               
-                              // Логируем выполнение задания
-                              try {
-                                final userId = TelegramWebAppService.getUserId();
-                                if (userId != null) {
-                                  await _logTaskCompletion(userId, 'Пригласить друзей', 2);
-                                }
-                              } catch (e) {
-                                print('Error logging task completion: $e');
-                              }
-                              
-                              await _fetchGiveawayStatus(); // обновить счетчик после действия
+                              // Обновляем состояние с бэка
+                              await _fetchUserTickets();
                             },
                             done: (int.tryParse(friendsCounter.split('/').first) ?? 0) > 0 || _task2ButtonPressed,
                             taskNumber: 2,
