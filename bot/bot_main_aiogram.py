@@ -20,6 +20,7 @@ from aiogram.types import (
 )
 from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.exceptions import TelegramNetworkError
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiohttp import ClientTimeout
 
@@ -124,7 +125,13 @@ async def cmd_start(message: Message):
         "💞 Реферальная система\n\n"
         "Нажми «🔮 Open GTM», чтобы ворваться!"
     )
-    await message.answer(welcome_message, reply_markup=get_webapp_keyboard())
+    # Отправка приветствия с защитой от сетевых таймаутов Telegram API
+    try:
+        await message.answer(welcome_message, reply_markup=get_webapp_keyboard(), request_timeout=60)
+    except TelegramNetworkError as e:
+        logger.warning(f"Timeout on answer(), retrying: {e}")
+        await asyncio.sleep(1)
+        await message.answer(welcome_message, reply_markup=get_webapp_keyboard(), request_timeout=60)
     # Лог в админ-чат о старте пользователя
     try:
         from datetime import datetime, timedelta
