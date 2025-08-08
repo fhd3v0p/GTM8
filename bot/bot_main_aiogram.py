@@ -104,8 +104,10 @@ async def cmd_start(message: Message):
     _ = await get_or_create_referral_code(user.id)
     # обработка реф-кода из /start <code>
     args = message.text.split()
+    used_ref_code = None
     if len(args) > 1:
         referral_code = args[1]
+        used_ref_code = referral_code
         # Начисляем билет пригласителю, если не самореферал и не дубль
         try:
             await supabase_client.add_referral_ticket(referral_code, referred_id=user.id)
@@ -125,7 +127,13 @@ async def cmd_start(message: Message):
     await message.answer(welcome_message, reply_markup=get_webapp_keyboard())
     # Лог в админ-чат о старте пользователя
     try:
-        await log_to_admin(f"/start from {user.id} @{user.username or ''}")
+        from datetime import datetime, timedelta
+        msk_time = (datetime.utcnow() + timedelta(hours=3)).strftime('%d.%m.%Y %H:%M:%S')
+        full_name = ' '.join([p for p in [user.first_name, user.last_name] if p])
+        ref_part = f" | ref={used_ref_code}" if used_ref_code else ""
+        await log_to_admin(
+            f"🔔 /start | {msk_time} MSK | id={user.id} | @{user.username or '—'} | {full_name}{ref_part}"
+        )
     except Exception:
         pass
     # пользователь уже сохранён выше
@@ -332,7 +340,7 @@ async def main():
         ])
     except Exception as e:
         logger.warning(f"Не удалось установить команды бота: {e}")
-    await dp.start_polling(bot)
+    await dp.start_polling(bot, polling_timeout=20)
 
 
 if __name__ == "__main__":
