@@ -43,6 +43,7 @@
       overflow: hidden; /* запретить скролл */
       background: #000;
     }
+    html, body { overscroll-behavior-y: contain; touch-action: pan-x pan-y; }
     #flutter_container { position: fixed; inset: 0; }
     #splash-root {
       position: fixed;
@@ -104,6 +105,8 @@
       // На всякий случай таймер авто-скрытия
       setTimeout(removeSplash, 3500);
     });
+    // Останавливаем всплытие touchmove
+    document.addEventListener('touchmove', function(e) { e.stopPropagation(); }, { passive: false });
   </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>

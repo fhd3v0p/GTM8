@@ -16,14 +16,39 @@ class TelegramWebAppService {
   static void disableVerticalSwipe() {
     if (!kIsWeb) return;
     try {
-      // Блокируем вертикальный скролл и pull-to-refresh
+      // Блокируем вертикальный скролл и pull-to-refresh (CSS)
       html.document.documentElement?.style.overflow = 'hidden';
       html.document.body?.style.overflow = 'hidden';
-      html.document.documentElement?.style.setProperty('overscroll-behavior', 'none');
-      html.document.body?.style.setProperty('overscroll-behavior', 'none');
-      // Разрешаем горизонтальные жесты (панорама по оси X) для работы слайдеров на Web
-      html.document.documentElement?.style.setProperty('touch-action', 'pan-x');
-      html.document.body?.style.setProperty('touch-action', 'pan-x');
+      html.document.documentElement?.style.setProperty('overscroll-behavior-y', 'contain');
+      html.document.body?.style.setProperty('overscroll-behavior-y', 'contain');
+      // Разрешаем жесты по оси X и Y (Telegram сам перехватывает закрытие)
+      html.document.documentElement?.style.setProperty('touch-action', 'pan-x pan-y');
+      html.document.body?.style.setProperty('touch-action', 'pan-x pan-y');
+
+      // Пытаемся отправить событие Telegram WebApp для отключения свайпа вниз
+      try {
+        final data = js.JsObject.jsify({
+          'eventType': 'web_app_setup_swipe_behavior',
+          'eventData': {'allow_vertical_swipe': false},
+        });
+        html.window.parent?.postMessage(data, 'https://web.telegram.org');
+      } catch (_) {
+        // Fallback через TelegramWebviewProxy
+        try {
+          final params = js.JsObject.jsify({'allow_vertical_swipe': false});
+          if (js.context.hasProperty('TelegramWebviewProxy')) {
+            js.context['TelegramWebviewProxy'].callMethod('postEvent', [
+              'web_app_setup_swipe_behavior',
+              js.context['JSON'].callMethod('stringify', [params])
+            ]);
+          }
+        } catch (_) {}
+      }
+
+      // Останавливаем всплытие touchmove (на всякий случай)
+      html.document.addEventListener('touchmove', (e) {
+        e.stopPropagation();
+      }, true);
     } catch (_) {}
   }
 
