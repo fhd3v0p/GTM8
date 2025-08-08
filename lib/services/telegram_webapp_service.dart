@@ -3,6 +3,15 @@ import 'dart:js' as js;
 import 'package:flutter/foundation.dart';
 
 class TelegramWebAppService {
+  // Определяем, что приложение запущено в Telegram WebApp
+  static bool get isTelegramWebApp {
+    try {
+      return js.context.hasProperty('Telegram') &&
+          js.context['Telegram'].hasProperty('WebApp');
+    } catch (_) {
+      return false;
+    }
+  }
   static void initializeWebApp() {
     if (kIsWeb) {
       try {
@@ -61,18 +70,8 @@ class TelegramWebAppService {
   }
 
   static String? getUserId() {
-    if (!kIsWeb) return null;
-    try {
-      final tg = js.context['Telegram'];
-      if (tg != null) {
-        final webApp = tg['WebApp'];
-        final initDataUnsafe = webApp != null ? webApp['initDataUnsafe'] : null;
-        final user = initDataUnsafe != null ? initDataUnsafe['user'] : null;
-        final id = user != null ? user['id'] : null;
-        if (id != null) return id.toString();
-      }
-    } catch (_) {}
-    return null;
+    final data = getUserData();
+    return data?['id']?.toString();
   }
 
   static String? getUsername() {
@@ -147,18 +146,44 @@ class TelegramWebAppService {
 
   static Future<bool> inviteFriendsWithShare() async { return true; }
 
-  static Future<Map<String, dynamic>?> getUserData() async {
-    final id = getUserId();
-    final username = getUsername();
-    final firstName = getFirstName();
-    final lastName = getLastName();
-    if (id == null) return null;
-    return {
-      'id': id,
-      'username': username,
-      'first_name': firstName,
-      'last_name': lastName,
-    };
+  // Получаем данные пользователя из Telegram WebApp
+  static Map<String, dynamic>? getUserData() {
+    if (!isTelegramWebApp) return null;
+    try {
+      final webApp = js.context['Telegram']['WebApp'];
+      final user = webApp['initDataUnsafe']['user'];
+
+      // Отладка
+      // ignore: avoid_print
+      print('🔍 Telegram WebApp Debug:');
+      // ignore: avoid_print
+      print('  WebApp available: ${webApp != null}');
+      // ignore: avoid_print
+      print('  initDataUnsafe: ${webApp['initDataUnsafe']}');
+      // ignore: avoid_print
+      print('  User data: $user');
+
+      if (user != null) {
+        final map = {
+          'id': user['id'],
+          'first_name': user['first_name'],
+          'last_name': user['last_name'],
+          'username': user['username'],
+          'language_code': user['language_code'],
+        };
+        // ignore: avoid_print
+        print('  Parsed user data: $map');
+        return map;
+      }
+
+      // ignore: avoid_print
+      print('  ❌ User data is null');
+      return null;
+    } catch (e) {
+      // ignore: avoid_print
+      print('Error getting user data: $e');
+      return null;
+    }
   }
 
   static Future<bool> uploadPhoto(Map<String, dynamic> params) async { return true; }
