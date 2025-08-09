@@ -23,7 +23,6 @@ from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.exceptions import TelegramNetworkError
 from aiogram.client.session.aiohttp import AiohttpSession
-from aiohttp import ClientTimeout
 
 from supabase_client import supabase_client
 from supabase_config import validate_supabase_config
@@ -60,8 +59,8 @@ SUBSCRIPTION_CHANNELS: List[dict] = [
 if not validate_supabase_config():
     logger.error("❌ Неверная конфигурация Supabase")
 
-# Кастомная HTTP-сессия aiogram с таймаутами
-session = AiohttpSession(timeout=ClientTimeout(total=20))
+# Кастомная HTTP-сессия aiogram с числовым таймаутом (во избежание TypeError при сложении)
+session = AiohttpSession(timeout=20)
 bot = Bot(token=TELEGRAM_BOT_TOKEN, session=session)
 
 
