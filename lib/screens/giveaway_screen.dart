@@ -20,6 +20,10 @@ class GiveawayScreen extends StatefulWidget {
 class _GiveawayScreenState extends State<GiveawayScreen> {
   late Timer _timer;
   Duration _timeLeft = Duration.zero;
+  // Стартовая имитация загрузки экрана (10 секунд)
+  bool _isInitialLoading = true;
+  int _initialDelayLeft = 10;
+  Timer? _initialDelayTimer;
 
   // UI flags (minimal set in use)
   bool _task1ButtonPressed = false;
@@ -54,7 +58,22 @@ class _GiveawayScreenState extends State<GiveawayScreen> {
       _updateTimeLeft();
     });
     _loadSavedState();
-    _fetchUserTickets();
+    // Имитация загрузки результатов гивевея на 10 секунд
+    _initialDelayLeft = 10;
+    _initialDelayTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      if (_initialDelayLeft > 0) {
+        setState(() { _initialDelayLeft--; });
+      }
+      if (_initialDelayLeft <= 0) {
+        t.cancel();
+        setState(() { _isInitialLoading = false; });
+        _fetchUserTickets();
+      }
+    });
     TelegramWebAppService.disableVerticalSwipe();
   }
 
@@ -190,6 +209,7 @@ class _GiveawayScreenState extends State<GiveawayScreen> {
   @override
   void dispose() {
     _timer.cancel();
+    _initialDelayTimer?.cancel();
     super.dispose();
   }
 
@@ -870,6 +890,29 @@ $shareLink
               ],
             ),
           ),
+          if (_isInitialLoading)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.9),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(
+                        width: 36,
+                        height: 36,
+                        child: CircularProgressIndicator(color: Color(0xFFFF6EC7), strokeWidth: 3),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Загрузка результатов... ${_initialDelayLeft}s',
+                        style: const TextStyle(color: Colors.white70, fontFamily: 'OpenSans', fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
