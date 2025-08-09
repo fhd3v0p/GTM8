@@ -68,8 +68,12 @@ def get_webapp_keyboard() -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
     # Принудительное обновление кеша у веб-аппа: добавляем параметр версии
     versioned_url = WEBAPP_URL if not WEBAPP_VERSION else f"{WEBAPP_URL}?v={WEBAPP_VERSION}"
+    # Добавляем cache-buster к ссылке (timestamp)
+    from time import time as _now
+    cache_buster = int(_now())
+    open_url = f"{versioned_url}&t={cache_buster}" if ("?" in versioned_url) else f"{versioned_url}?t={cache_buster}"
     kb.row(
-        InlineKeyboardButton(text="🔮 Open GTM", web_app=WebAppInfo(url=versioned_url)),
+        InlineKeyboardButton(text="🔮 Open GTM", web_app=WebAppInfo(url=open_url)),
         InlineKeyboardButton(text="💭 CHAT", url="https://t.me/G_T_MODEL/10"),
     )
     return kb.as_markup()
