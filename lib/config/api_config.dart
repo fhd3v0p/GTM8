@@ -8,6 +8,9 @@ class ApiConfig {
 
   // Supabase Storage Configuration
   static const String storageBucket = 'gtm-assets-public';
+  // AI uploads (private bucket)
+  static final String aiUploadsBucket = dotenv.env['SUPABASE_AI_BUCKET'] ?? 'gtm-ai-uploads';
+  static final String aiUploadsFolder = dotenv.env['SUPABASE_AI_FOLDER'] ?? 'img';
   
   // Storage Paths
   static const String avatarsPath = 'avatars';

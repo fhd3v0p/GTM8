@@ -1,8 +1,13 @@
 import 'dart:html' as html;
 import 'dart:convert';
 import 'dart:js' as js;
+import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:telegram_web_app/telegram_web_app.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../config/api_config.dart';
+import '../models/photo_upload_model.dart';
 
 class TelegramWebAppService {
   // Определяем, что приложение запущено в Telegram WebApp
@@ -283,7 +288,61 @@ class TelegramWebAppService {
     return out;
   }
 
-  static Future<bool> uploadPhoto(Map<String, dynamic> params) async { return true; }
+  // Загрузка файла в приватный бакет через Supabase Storage (использует SupabaseFlutter на веб)
+  static Future<PhotoUploadModel?> uploadPhoto({required String category, String? description}) async {
+    try {
+      // Выбор файла через HTML input (web)
+      final input = html.FileUploadInputElement();
+      input.accept = 'image/*,video/*';
+      input.click();
+      await input.onChange.first;
+      if (input.files == null || input.files!.isEmpty) return null;
+      final file = input.files!.first;
+
+      final userId = getUserId() ?? 'anonymous';
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${file.name}';
+      final objectPath = '${ApiConfig.aiUploadsFolder}/$userId/$category/$fileName';
+
+      // Используем SupabaseFlutter storage API
+      final supa = Supabase.instance.client;
+      final from = supa.storage.from(ApiConfig.aiUploadsBucket);
+      final reader = html.FileReader();
+      final completer = Completer<List<int>>();
+      reader.readAsArrayBuffer(file);
+      reader.onLoadEnd.listen((_) {
+        final data = reader.result as ByteBuffer;
+        completer.complete(data.asUint8List());
+      });
+      final bytes = Uint8List.fromList(await completer.future);
+
+      final res = await from.uploadBinary(
+        objectPath,
+        bytes,
+        fileOptions: FileOptions(
+          upsert: true,
+          contentType: (file.type.isNotEmpty ? file.type : 'application/octet-stream'),
+        ),
+      );
+      if (res.isNotEmpty) {
+        return PhotoUploadModel(
+          id: res,
+          userId: userId,
+          category: category,
+          fileId: res,
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType: file.type.isNotEmpty ? file.type : 'application/octet-stream',
+          uploadDate: DateTime.now(),
+          description: description,
+        );
+      }
+      return null;
+    } catch (e) {
+      // ignore: avoid_print
+      print('uploadPhoto error: $e');
+      return null;
+    }
+  }
   static Future<bool> showMainButtonPopup(Map<String, dynamic> params) async { return true; }
   static Future<bool> copyToClipboard(String text) async { return true; }
 }

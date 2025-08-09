@@ -6,7 +6,9 @@ import '../models/photo_upload_model.dart';
 import 'dart:math';
 import '../models/master_model.dart';
 import 'master_detail_screen.dart';
-import 'choose_search_mode_screen.dart';
+import 'master_product_screen.dart';
+import '../models/categories.dart';
+// import 'choose_search_mode_screen.dart';
 import 'welcome_screen.dart';
 
 class AiPhotoSearchScreen extends StatefulWidget {
@@ -44,15 +46,13 @@ class _AiPhotoSearchScreenState extends State<AiPhotoSearchScreen> {
     });
 
     try {
-      final photoUpload = await TelegramWebAppService.uploadPhoto({
-        'category': selectedCategory!,
-        'description': 'AI photo search reference',
-      });
+      final photoUpload = await TelegramWebAppService.uploadPhoto(
+        category: selectedCategory!,
+        description: 'AI photo search reference',
+      );
 
-      if (photoUpload == true) {
-        setState(() {
-          _lastUploadedPhoto = null; // Заглушка, так как uploadPhoto возвращает bool
-        });
+      if (photoUpload != null) {
+        setState(() { _lastUploadedPhoto = photoUpload; });
         // Список папок артистов как в master_cloud_screen.dart
         final artistFolders = [
           'assets/artists/Lin++',
@@ -74,12 +74,24 @@ class _AiPhotoSearchScreenState extends State<AiPhotoSearchScreen> {
         final allMasters = await MasterModel.loadAllFromFolders(artistFolders);
         final filtered = allMasters.where((m) => m.category == selectedCategory).toList();
         if (filtered.isNotEmpty) {
-          final randomArtist = filtered[Random().nextInt(filtered.length)];
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => _AiPhotoResultScreen(master: randomArtist),
-            ),
-          );
+          // Случайно: либо мастер деталь, либо продукт деталь для GTM BRAND и др.
+          final isProduct = MasterCloudCategories.isProductCategory(selectedCategory!);
+          final random = Random().nextBool();
+          if (isProduct && random) {
+            // Переходим к первому продукту категории (заглушка: productId='1')
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => MasterProductScreen(productId: '1'),
+              ),
+            );
+          } else {
+            final randomArtist = filtered[Random().nextInt(filtered.length)];
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => _AiPhotoResultScreen(master: randomArtist),
+              ),
+            );
+          }
         } else {
           _showError('Не найдено артистов в выбранной категории');
         }
@@ -97,9 +109,7 @@ class _AiPhotoSearchScreenState extends State<AiPhotoSearchScreen> {
     TelegramWebAppService.showAlert(message);
   }
 
-  void _showSuccess(String message) {
-    TelegramWebAppService.showAlert(message);
-  }
+  // void _showSuccess(String message) {}
 
 
 
