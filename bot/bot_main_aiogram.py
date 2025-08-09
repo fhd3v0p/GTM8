@@ -8,6 +8,7 @@ import logging
 import random
 import string
 from datetime import datetime
+import time
 from typing import List
 
 from dotenv import load_dotenv
@@ -59,8 +60,9 @@ SUBSCRIPTION_CHANNELS: List[dict] = [
 if not validate_supabase_config():
     logger.error("❌ Неверная конфигурация Supabase")
 
-# Используем дефолтную HTTP-сессию aiogram (избегаем несовместимости таймаутов)
-bot = Bot(token=TELEGRAM_BOT_TOKEN)
+# Кастомная HTTP-сессия aiogram с таймаутами
+session = AiohttpSession(timeout=ClientTimeout(total=20))
+bot = Bot(token=TELEGRAM_BOT_TOKEN, session=session)
 
 
 def get_webapp_keyboard() -> InlineKeyboardMarkup:
@@ -163,22 +165,51 @@ async def save_user(user_id: int, username: str, first_name: str, last_name: str
         await supabase_client.create_user(user_data)
 
 
+LAST_CHECK_AT: dict[int, float] = {}
+
+
 async def cmd_check(message: Message):
     user = message.from_user
+    # Троттлинг: не чаще одного раза в 2 секунды
+    now = time.monotonic()
+    last = LAST_CHECK_AT.get(user.id, 0.0)
+    if now - last < 2.0:
+        await message.answer("⏳ Подождите секунду перед повторной проверкой")
+        return
+    LAST_CHECK_AT[user.id] = now
     await message.answer("🔍 Проверяю подписки на каналы...")
+
+    # Если уже есть билет за папку — не дергаем Telegram API лишний раз
+    try:
+        u = await supabase_client.get_user(user.id)
+        if u and int(u.get('subscription_tickets') or 0) > 0:
+            result = await supabase_client.check_subscription_and_award_ticket(user.id, True)
+            total_user = result.get('total_tickets', 0)
+            total_all = await supabase_client.get_total_tickets()
+            await message.answer(f"✅ Билет за папку уже начислен\n\n🎫 Ваши билеты: {total_user}/{total_all}")
+            return
+    except Exception:
+        pass
 
     subscribed = []
     not_subscribed = []
-    for ch in SUBSCRIPTION_CHANNELS:
-        try:
-            member = await bot.get_chat_member(chat_id=ch['channel_id'], user_id=user.id)
-            if member.status in ('member', 'administrator', 'creator'):
-                subscribed.append(ch)
-            else:
+    # Параллельная проверка каналов с ограничением (антифлуд)
+    sem = asyncio.Semaphore(5)
+
+    async def check_one(ch):
+        async with sem:
+            try:
+                member = await bot.get_chat_member(chat_id=ch['channel_id'], user_id=user.id)
+                if member.status in ('member', 'administrator', 'creator'):
+                    subscribed.append(ch)
+                else:
+                    not_subscribed.append(ch)
+            except Exception as e:
+                logger.error(f"Ошибка проверки канала {ch['channel_name']}: {e}")
                 not_subscribed.append(ch)
-        except Exception as e:
-            logger.error(f"Ошибка проверки канала {ch['channel_name']}: {e}")
-            not_subscribed.append(ch)
+
+    # Быстрый ACK отправлен выше; параллельную проверку ведём и итог формируем ниже
+    await asyncio.gather(*[check_one(ch) for ch in SUBSCRIPTION_CHANNELS])
 
     is_all = len(subscribed) == 9
     result = await supabase_client.check_subscription_and_award_ticket(user.id, is_all)

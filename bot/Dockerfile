@@ -31,5 +31,6 @@ USER appuser
 # Проверка конфигурации перед запуском
 RUN python -c "from supabase_config import validate_supabase_config; print('✅ Supabase config loaded')"
 
-# Запуск aiogram-бота
-CMD ["python", "-u", "bot_main_aiogram.py"] 
+# Запуск aiogram-бота (включаем uvloop при наличии)
+ENV PYTHONUNBUFFERED=1
+CMD ["python", "-u", "bot_main_aiogram.py"]

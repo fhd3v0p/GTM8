@@ -7,7 +7,7 @@ import '../services/api_service.dart';
 import '../services/artists_service.dart';
 import 'dart:math';
 import '../services/telegram_webapp_service.dart';
-import '../models/product_model.dart';
+ 
 import '../models/categories.dart';
 
 class MasterCloudScreen extends StatefulWidget {
@@ -30,7 +30,7 @@ class _MasterCloudScreenState extends State<MasterCloudScreen> {
   Timer? _autoScrollTimer;
   bool _isPaused = false;
 
-  static List<MasterModel>? _cachedMasters; // Кэш мастеров
+  
   List<MasterModel> masters = [];
   bool _loading = true;
 
@@ -48,8 +48,7 @@ class _MasterCloudScreenState extends State<MasterCloudScreen> {
     // Принудительно очищаем кэш ArtistsService чтобы применить новые категории
     ArtistsService.forceClearCache();
     
-    // ВРЕМЕННО: Принудительно очищаем локальный кэш для применения новых категорий
-    _cachedMasters = null;
+    // ВРЕМЕННО: локальный кэш отключен
     
     // Убираем использование локального кэша для тестирования категорий
     // if (_cachedMasters != null) {
@@ -62,9 +61,9 @@ class _MasterCloudScreenState extends State<MasterCloudScreen> {
     // }
     
     try {
-      // Сначала пытаемся загрузить из Supabase с фильтрацией по городу
-      print('DEBUG: Загружаем мастеров из Supabase для города: ${widget.city}');
-      final supabaseMasters = await ArtistsService.getArtistsByCity(widget.city);
+      // Загружаем всех мастеров из Supabase (продукты показываем во всех городах)
+      print('DEBUG: Загружаем мастеров из Supabase (без фильтра по городу)');
+      final supabaseMasters = await ArtistsService.getArtists();
       
       if (supabaseMasters.isNotEmpty) {
         print('DEBUG: Загружено из Supabase: ${supabaseMasters.length} мастеров');
@@ -74,7 +73,7 @@ class _MasterCloudScreenState extends State<MasterCloudScreen> {
           masters = supabaseMasters;
           _loading = false;
         });
-        _cachedMasters = supabaseMasters;
+        
         return;
       }
     } catch (e) {
@@ -97,7 +96,7 @@ class _MasterCloudScreenState extends State<MasterCloudScreen> {
           masters = loadedMasters;
           _loading = false;
         });
-        _cachedMasters = loadedMasters;
+        
         return;
       }
     } catch (e) {
@@ -119,11 +118,15 @@ class _MasterCloudScreenState extends State<MasterCloudScreen> {
       'assets/artists/MurderDoll',
     ];
     print('DEBUG: Fallback - загружаем из папок: $artistFolders');
-    final results = await Future.wait(
-      artistFolders.map((folder) => MasterModel.fromArtistFolder(folder).catchError((e) {
-        print('DEBUG: Ошибка загрузки из $folder: $e');
-        return null;
-      })),
+    final results = await Future.wait<MasterModel?>(
+      artistFolders.map((folder) async {
+        try {
+          return await MasterModel.fromArtistFolder(folder);
+        } catch (e) {
+          print('DEBUG: Ошибка загрузки из $folder: $e');
+          return null;
+        }
+      }),
     );
     var loaded = results.whereType<MasterModel>().toList();
     print('DEBUG: Загружено мастеров из папок: ${loaded.length}');
@@ -139,7 +142,7 @@ class _MasterCloudScreenState extends State<MasterCloudScreen> {
       masters = loaded;
       _loading = false;
     });
-    _cachedMasters = loaded;
+    
   }
 
   @override
@@ -184,12 +187,15 @@ class _MasterCloudScreenState extends State<MasterCloudScreen> {
       return const _MasterCloudLoadingScreen();
     }
     final filtered = masters.where((m) {
+      final bool isProduct = MasterCloudCategories.isProductCategory(selectedCategory);
       final categoryMatch = m.category.toLowerCase() == selectedCategory.toLowerCase() || selectedCategory == '';
-      // Более гибкая фильтрация по городу - если город пустой или содержит название
-      final cityMatch = widget.city == '' || m.city == '' || 
-                       m.city.toLowerCase().contains(widget.city.toLowerCase()) ||
-                       widget.city.toLowerCase().contains(m.city.toLowerCase());
-      print('DEBUG: Мастер ${m.name} - категория: ${m.category} (${categoryMatch}), город: ${m.city} vs ${widget.city} (${cityMatch})');
+      // Для товарных категорий игнорируем город, для услуг — фильтруем по городу
+      final cityMatch = isProduct
+          ? true
+          : (widget.city == '' || m.city == '' ||
+              m.city.toLowerCase().contains(widget.city.toLowerCase()) ||
+              widget.city.toLowerCase().contains(m.city.toLowerCase()));
+      print('DEBUG: Мастер ${m.name} - категория: ${m.category} (${categoryMatch}), город: ${m.city} vs ${widget.city} (${cityMatch}), isProduct=$isProduct');
       return categoryMatch && cityMatch;
     }).toList();
     print('DEBUG: Отфильтровано мастеров: ${filtered.length}');

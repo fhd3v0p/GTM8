@@ -1,4 +1,4 @@
-import 'dart:convert';
+ 
 
 class ProductModel {
   final String id;
@@ -16,6 +16,7 @@ class ProductModel {
   final String sizeType; // 'clothing', 'shoes', 'one_size'
   final String color;
   final String masterId; // ID мастера/артиста, который продает
+  final String artistId; // Явное поле ID артиста (дублирует masterId)
   final String masterName;
   final String masterTelegram;
   final String avatar;
@@ -39,6 +40,7 @@ class ProductModel {
     this.sizeType = 'clothing',
     required this.color,
     required this.masterId,
+      required this.artistId,
     required this.masterName,
     required this.masterTelegram,
     required this.avatar,
@@ -58,13 +60,16 @@ class ProductModel {
       price: (json['price'] as num).toDouble(),
       oldPrice: json['old_price'] != null ? (json['old_price'] as num).toDouble() : null,
       discountPercent: json['discount_percent'] as int? ?? 0,
-      size: json['size'] as String,
+      size: (json['size'] as String?)
+              ?? (json['size_clothing'] as String?)
+              ?? (json['size_type'] == 'one_size' ? 'ONE SIZE' : ''),
       sizeClothing: json['size_clothing'] as String?,
       sizePants: json['size_pants'] as String?,
       sizeShoesEu: json['size_shoes_eu'] as int?,
       sizeType: json['size_type'] as String? ?? 'clothing',
-      color: json['color'] as String,
+      color: (json['color'] as String?) ?? '',
       masterId: json['master_id'].toString(), // Конвертируем int в String
+      artistId: (json['artist_id'] ?? json['master_id']).toString(),
       masterName: json['master_name'] as String? ?? '',
       masterTelegram: json['master_telegram'] as String,
       avatar: json['avatar'] as String,
@@ -88,6 +93,7 @@ class ProductModel {
       'size': size,
       'color': color,
       'master_id': masterId,
+      'artist_id': artistId,
       'master_name': masterName,
       'master_telegram': masterTelegram,
       'avatar': avatar,
@@ -189,6 +195,7 @@ class ProductModel {
       size: newSize,
       color: color,
       masterId: masterId,
+      artistId: artistId,
       masterName: masterName,
       masterTelegram: masterTelegram,
       avatar: avatar,
@@ -361,11 +368,14 @@ class Cart {
 
   // Генерация текста для сообщения в Telegram
   String get telegramMessage {
-    if (isEmpty) return 'Корзина пуста';
-    
     final buffer = StringBuffer();
-    buffer.writeln('🛒 *Корзина:*\n');
-    
+    buffer.writeln('Привет, интересует данный товар со скидкой, проконсультируйте меня 🙏');
+    if (isEmpty) {
+      return buffer.toString();
+    }
+    buffer.writeln('');
+    buffer.writeln('🛒 Корзина:');
+    buffer.writeln('');
     for (final item in items) {
       buffer.writeln('• ${item.product.name}');
       buffer.writeln('  Размер: ${item.product.displaySize}');
@@ -374,12 +384,10 @@ class Cart {
       buffer.writeln('  Цена: ${item.product.formattedPrice}');
       buffer.writeln('');
     }
-    
-    buffer.writeln('📊 *Итого:*');
+    buffer.writeln('📊 Итого:');
     buffer.writeln('Подытог: ${formattedSubtotal}');
     buffer.writeln('Скидка 8%: -${formattedDiscount}');
-    buffer.writeln('**Итого: ${formattedTotal}**');
-    
+    buffer.writeln('Итого к оплате: ${formattedTotal}');
     return buffer.toString();
   }
 } 

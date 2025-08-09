@@ -79,6 +79,72 @@ class SupabaseService {
     }
   }
 
+  // Быстрая статистика пользователя напрямую из Supabase
+  Future<Map<String, dynamic>> getUserStatsFast(int telegramId) async {
+    final user = await getUser(telegramId);
+    if (user == null) return {};
+    final int subsTickets = (user['subscription_tickets'] is int)
+        ? (user['subscription_tickets'] as int)
+        : int.tryParse('${user['subscription_tickets']}') ?? 0;
+    final int totalTickets = (user['total_tickets'] is int)
+        ? (user['total_tickets'] as int)
+        : int.tryParse('${user['total_tickets']}') ?? 0;
+    final int referralTickets = (user['referral_tickets'] is int)
+        ? (user['referral_tickets'] as int)
+        : int.tryParse('${user['referral_tickets']}') ?? 0;
+    return {
+      'total_tickets': totalTickets,
+      'subscription_tickets': subsTickets,
+      'referral_tickets': referralTickets,
+      'referral_code': user['referral_code'] ?? '',
+    };
+  }
+
+  // Общая сумма билетов (Y) напрямую из Supabase
+  Future<int> getTotalAllTicketsFast() async {
+    try {
+      // Пытаемся прочитать из view total_all_tickets, если есть
+      final viewUrl = '${ApiConfig.apiBaseUrl}/total_all_tickets?select=*';
+      final respView = await http.get(Uri.parse(viewUrl), headers: ApiConfig.headers);
+      if (respView.statusCode == 200) {
+        final data = json.decode(respView.body);
+        if (data is List && data.isNotEmpty) {
+          final row = data.first as Map<String, dynamic>;
+          for (final key in ['total_all_tickets','total_all','total','value','count']) {
+            if (row.containsKey(key)) {
+              final v = row[key];
+              final parsed = (v is int) ? v : int.tryParse('$v') ?? 0;
+              return parsed;
+            }
+          }
+          // fallback: первое числовое значение
+          for (final v in row.values) {
+            final parsed = (v is int) ? v : int.tryParse('$v');
+            if (parsed != null) return parsed;
+          }
+        }
+      }
+    } catch (_) {}
+    // Fallback: суммируем по users.total_tickets
+    final url = '${ApiConfig.getTableUrl(ApiConfig.usersTable)}?select=total_tickets';
+    final response = await http.get(Uri.parse(url), headers: ApiConfig.headers);
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      int sum = 0;
+      for (final u in data) {
+        final dynamic raw = u['total_tickets'];
+        final int v = raw is int
+            ? raw
+            : raw is num
+                ? raw.toInt()
+                : int.tryParse('$raw') ?? 0;
+        sum += v;
+      }
+      return sum;
+    }
+    return 0;
+  }
+
   Future<Map<String, dynamic>> createUser(Map<String, dynamic> userData) async {
     try {
       final response = await http.post(

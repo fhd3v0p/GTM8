@@ -78,7 +78,31 @@ class TelegramWebAppService {
 
   static String? getUserId() {
     final data = getUserData();
-    return data?['id']?.toString();
+    final id = data?['id']?.toString();
+    if (id != null && id.isNotEmpty) return id;
+    // Fallbacks для dev/веб отладки вне Telegram
+    try {
+      final qp = Uri.base.queryParameters;
+      final qpUid = qp['uid'] ?? qp['debug_uid'];
+      if (qpUid != null && qpUid.isNotEmpty) {
+        try { html.window.localStorage['debug_uid'] = qpUid; } catch (_) {}
+        return qpUid;
+      }
+      final stored = html.window.localStorage['debug_uid'];
+      if (stored != null && stored.isNotEmpty) return stored;
+    } catch (_) {}
+    return null;
+  }
+
+  /// Возвращает userId только из плагина Telegram WebApp (без фоллбеков)
+  static String? getPluginUserId() {
+    try {
+      final t = TelegramWebApp.instance;
+      if (t.isSupported && t.initDataUnsafe?.user?.id != null) {
+        return t.initDataUnsafe!.user!.id.toString();
+      }
+    } catch (_) {}
+    return null;
   }
 
   static String? getUsername() {

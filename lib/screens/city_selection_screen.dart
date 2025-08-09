@@ -107,15 +107,18 @@ class _CitySelectionScreenState extends State<CitySelectionScreen> with SingleTi
     super.dispose();
   }
 
-  void navigateWithFade(BuildContext context, Widget page) {
+  void navigateWithCircularLoading(BuildContext context, Widget page) async {
+    // Показать такой же лоадер, как на welcome/master cloud
+    await Navigator.of(context).push(
+      PageRouteBuilder(opaque: false, pageBuilder: (_, __, ___) => const _CityLoadingOverlay()),
+    );
+    // После короткой имитации перехода — открыть экран
+    // Примечание: _CityLoadingOverlay сам закрывается через 1.8с
     Navigator.of(context).push(
       PageRouteBuilder(
         pageBuilder: (_, __, ___) => page,
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: animation,
-            child: child,
-          );
+          return FadeTransition(opacity: animation, child: child);
         },
         transitionDuration: const Duration(milliseconds: 350),
       ),
@@ -128,28 +131,7 @@ class _CitySelectionScreenState extends State<CitySelectionScreen> with SingleTi
     final height = MediaQuery.of(context).size.height;
 
     if (_loading) {
-      return Scaffold(
-        backgroundColor: const Color(0xFF232026),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Загружаем города...',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontFamily: 'NauryzKeds',
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      return const _CityInlineLoader();
     }
 
     return Scaffold(
@@ -319,7 +301,7 @@ class _CitySelectionScreenState extends State<CitySelectionScreen> with SingleTi
                         : () {
                             print('DEBUG: Переход к MasterCloudScreen с городом: $_selectedCity');
                             try {
-                              navigateWithFade(
+                              navigateWithCircularLoading(
                                 context,
                                 MasterCloudScreen(city: _selectedCity!),
                               );
@@ -370,6 +352,234 @@ class _CitySelectionScreenState extends State<CitySelectionScreen> with SingleTi
   }
 }
 
+class _CityLoadingOverlay extends StatefulWidget {
+  const _CityLoadingOverlay();
+  @override
+  State<_CityLoadingOverlay> createState() => _CityLoadingOverlayState();
+}
+
+class _CityLoadingOverlayState extends State<_CityLoadingOverlay> with TickerProviderStateMixin {
+  late final AnimationController _pulseController;
+  late final Animation<double> _pulseAnimation;
+  double _orbitAngle = 0.0;
+  final List<String> avatars = const [
+    'assets/avatar1.png',
+    'assets/avatar2.png',
+    'assets/avatar3.png',
+    'assets/avatar7.png',
+    'assets/avatar5.png',
+    'assets/avatar6.png',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(duration: const Duration(seconds: 2), vsync: this)..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut));
+    _startOrbitAnimation();
+    Future.delayed(const Duration(milliseconds: 1800), () => mounted ? Navigator.of(context).pop() : null);
+  }
+
+  void _startOrbitAnimation() {
+    const double baseSpeed = 0.012;
+    const Duration frameDuration = Duration(milliseconds: 16);
+    void tick() {
+      if (!mounted) return;
+      _orbitAngle += baseSpeed;
+      if (_orbitAngle > 2 * pi) _orbitAngle -= 2 * pi;
+      setState(() {});
+      Future.delayed(frameDuration, tick);
+    }
+    tick();
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  Offset _pos(double angle, double radius) => Offset(radius * cos(angle), radius * sin(angle));
+
+  Widget _framedMemoji(String path) {
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: const BoxDecoration(color: Color(0xFFF3E0E6), shape: BoxShape.circle),
+      child: CircleAvatar(radius: 20, backgroundImage: AssetImage(path), backgroundColor: Colors.black),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black.withOpacity(0.7),
+      body: Center(
+        child: SizedBox(
+          width: 320,
+          height: 320,
+          child: AnimatedBuilder(
+            animation: _pulseController,
+            builder: (context, _) {
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  CustomPaint(size: const Size(320, 320), painter: DottedCirclePainter(color: Colors.white.withOpacity(0.7), circleSize: 180, animationValue: _pulseController.value)),
+                  Transform.scale(
+                    scale: _pulseAnimation.value,
+                    child: Container(width: 224, height: 224, decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFFFF6EC7).withOpacity(0.4))),
+                  ),
+                  Transform.scale(
+                    scale: _pulseAnimation.value,
+                    child: Container(width: 120, height: 120, decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFFFF6EC7).withOpacity(0.85))),
+                  ),
+                  for (int i = 0; i < 3; i++)
+                    Transform.translate(offset: _pos(_orbitAngle + (i * 2 * pi / 3), 160), child: _framedMemoji(avatars[i])),
+                  for (int i = 0; i < 2; i++)
+                    Transform.translate(offset: _pos(-_orbitAngle + (i * pi), 112), child: _framedMemoji(avatars[3 + i])),
+                  Transform.translate(offset: _pos(_orbitAngle, 86), child: _framedMemoji('assets/avatar7.png')),
+                  // Центр мемоджи
+                  Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF3E0E6),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const CircleAvatar(
+                      radius: 36,
+                      backgroundImage: AssetImage('assets/center_memoji.png'),
+                      backgroundColor: Color(0xFF33272D),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CityInlineLoader extends StatefulWidget {
+  const _CityInlineLoader();
+  @override
+  State<_CityInlineLoader> createState() => _CityInlineLoaderState();
+}
+
+class _CityInlineLoaderState extends State<_CityInlineLoader> with TickerProviderStateMixin {
+  late final AnimationController _pulseController;
+  late final Animation<double> _pulseAnimation;
+  double _orbitAngle = 0.0;
+  final List<String> avatars = const [
+    'assets/avatar1.png',
+    'assets/avatar2.png',
+    'assets/avatar3.png',
+    'assets/avatar7.png',
+    'assets/avatar5.png',
+    'assets/avatar6.png',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(duration: const Duration(seconds: 2), vsync: this)..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut));
+    _startOrbitAnimation();
+  }
+
+  void _startOrbitAnimation() {
+    const double baseSpeed = 0.012;
+    const Duration frameDuration = Duration(milliseconds: 16);
+    void tick() {
+      if (!mounted) return;
+      _orbitAngle += baseSpeed;
+      if (_orbitAngle > 2 * pi) _orbitAngle -= 2 * pi;
+      setState(() {});
+      Future.delayed(frameDuration, tick);
+    }
+    tick();
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  Offset _pos(double angle, double radius) => Offset(radius * cos(angle), radius * sin(angle));
+  Widget _framedMemoji(String path) {
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: const BoxDecoration(color: Color(0xFFF3E0E6), shape: BoxShape.circle),
+      child: CircleAvatar(radius: 20, backgroundImage: AssetImage(path), backgroundColor: Colors.black),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF232026),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 320,
+              height: 320,
+              child: AnimatedBuilder(
+                animation: _pulseController,
+                builder: (context, _) {
+              return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      CustomPaint(size: const Size(320, 320), painter: DottedCirclePainter(color: Colors.white.withOpacity(0.7), circleSize: 180, animationValue: _pulseController.value)),
+                      Transform.scale(
+                        scale: _pulseAnimation.value,
+                        child: Container(width: 224, height: 224, decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFFFF6EC7).withOpacity(0.4))),
+                      ),
+                      Transform.scale(
+                        scale: _pulseAnimation.value,
+                        child: Container(width: 120, height: 120, decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFFFF6EC7).withOpacity(0.85))),
+                      ),
+                      for (int i = 0; i < 3; i++)
+                        Transform.translate(offset: _pos(_orbitAngle + (i * 2 * pi / 3), 160), child: _framedMemoji(avatars[i])),
+                      for (int i = 0; i < 2; i++)
+                        Transform.translate(offset: _pos(-_orbitAngle + (i * pi), 112), child: _framedMemoji(avatars[3 + i])),
+                  Transform.translate(offset: _pos(_orbitAngle, 86), child: _framedMemoji('assets/avatar7.png')),
+                  // Центр мемоджи
+                  Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF3E0E6),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const CircleAvatar(
+                      radius: 36,
+                      backgroundImage: AssetImage('assets/center_memoji.png'),
+                      backgroundColor: Color(0xFF33272D),
+                    ),
+                  ),
+                    ],
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Загружаем города...',
+              style: TextStyle(
+                color: Colors.white,
+                fontFamily: 'NauryzKeds',
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class DottedCirclePainter extends CustomPainter {
   final Color color;
   final double circleSize;
@@ -385,7 +595,8 @@ class DottedCirclePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final double dashWidth = circleSize / 6;
     final double dashSpace = circleSize / 6;
-    final double stroke = circleSize / 13;
+    // Линия тоньше в 6 раз
+    final double stroke = circleSize / 78;
 
     final paint = Paint()
       ..color = color

@@ -257,16 +257,24 @@ class ApiService {
     try {
       final buffer = StringBuffer('${baseUrl}/${ApiConfig.productsTable}?select=*');
       if (category != null && category.isNotEmpty) {
-        buffer.write('&category=eq.${Uri.encodeComponent(category)}');
+        // Используем ilike для нечувствительного к регистру совпадения
+        buffer.write('&category=ilike.*${Uri.encodeComponent(category)}*');
       }
       if (masterId != null && masterId.isNotEmpty) {
         buffer.write('&master_id=eq.${Uri.encodeComponent(masterId)}');
       }
-      final response = await http.get(Uri.parse(buffer.toString()), headers: headers);
+      final url = buffer.toString();
+      print('🚨 DEBUG: Запрос продуктов: $url');
+      final response = await http.get(Uri.parse(url), headers: headers);
+      print('🚨 DEBUG: Ответ продуктов статус=${response.statusCode}');
       if (response.statusCode == 200) {
+        print('🚨 DEBUG: Ответ продуктов raw=${response.body}');
         final List data = json.decode(response.body) as List;
-        return data.map((e) => ProductModel.fromJson(Map<String, dynamic>.from(e))).toList();
+        final result = data.map((e) => ProductModel.fromJson(Map<String, dynamic>.from(e))).toList();
+        print('🚨 DEBUG: Спарсили продуктов: ${result.length}');
+        return result;
       } else {
+        print('🚨 DEBUG: Ошибка продуктов тело=${response.body}');
         throw Exception('Failed to load products: ${response.statusCode}');
       }
     } catch (e) {
@@ -339,6 +347,73 @@ class ApiService {
   }
 
   // === RATING / GIVEAWAY HELPERS (moved from TicketsApiService) ===
+  /// Получение рейтинга артиста
+  static Future<Map<String, dynamic>?> getArtistRating(String artistName) async {
+    final uri = Uri.parse('$ratingApiBase/get-rating/${Uri.encodeComponent(artistName)}');
+    try {
+      final resp = await http
+          .get(uri, headers: ratingHeaders)
+          .timeout(const Duration(seconds: 20));
+      if (resp.statusCode == 200 && resp.body.isNotEmpty) {
+        return jsonDecode(resp.body) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Отправка оценки артиста
+  static Future<Map<String, dynamic>?> rateArtist({
+    required String artistName,
+    required String userId,
+    required int rating,
+    String comment = '',
+  }) async {
+    final uri = Uri.parse('$ratingApiBase/rate-artist');
+    try {
+      final resp = await http
+          .post(
+            uri,
+            headers: ratingHeaders,
+            body: jsonEncode({
+              'artist_name': artistName,
+              'user_id': userId,
+              'rating': rating,
+              'comment': comment,
+            }),
+          )
+          .timeout(const Duration(seconds: 20));
+      if (resp.statusCode == 200 && resp.body.isNotEmpty) {
+        return jsonDecode(resp.body) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Логирование использования промокода в Supabase (таблица promocode_usage)
+  static Future<bool> logPromocodeUsage({
+    required String userId,
+    required String promocode,
+    required String masterName,
+  }) async {
+    final uri = Uri.parse('${ApiConfig.apiBaseUrl}/promocode_usage');
+    try {
+      final resp = await http
+          .post(
+            uri,
+            headers: headers,
+            body: jsonEncode({
+              'user_id': userId,
+              'promocode': promocode,
+              'master_name': masterName,
+              'timestamp': DateTime.now().toIso8601String(),
+            }),
+          )
+          .timeout(const Duration(seconds: 20));
+      return resp.statusCode == 201;
+    } catch (_) {
+      return false;
+    }
+  }
   /// Проверка подписки пользователя (вызывает Flask Rating API -> Telegram Bot API -> Supabase RPC)
   static Future<Map<String, dynamic>> checkSubscriptions(int telegramId) async {
     try {

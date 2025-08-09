@@ -4,6 +4,7 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
+    netcat-openbsd \
     && rm -rf /var/lib/apt/lists/*
 
 # Создание рабочей директории
@@ -30,4 +31,4 @@ USER appuser
 EXPOSE 5000
 
 # Запуск приложения (хост/порт берём из переменных окружения API_HOST/API_PORT)
-CMD ["/bin/sh", "-c", "gunicorn --bind ${API_HOST:-0.0.0.0}:${API_PORT:-5000} --workers 4 --timeout 120 --access-logfile ${GUNICORN_ACCESSLOG} --error-logfile ${GUNICORN_ERRORLOG} rating_api:app"]
+CMD ["/bin/sh", "-c", "gunicorn --bind ${API_HOST:-0.0.0.0}:${API_PORT:-5000} --workers 4 --threads 4 --timeout 120 --access-logfile ${GUNICORN_ACCESSLOG} --error-logfile ${GUNICORN_ERRORLOG} rating_api:app"]

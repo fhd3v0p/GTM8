@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../api_config.dart';
+import '../config/api_config.dart';
 
 class CartService {
   // Используем Supabase API
@@ -53,6 +53,20 @@ class CartService {
       return response.statusCode == 204;
     } catch (e) {
       throw Exception('Error removing from cart: $e');
+    }
+  }
+
+  // Обновить количество товара в корзине
+  static Future<bool> updateQuantity({required int itemId, required int quantity}) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/cart?id=eq.$itemId'),
+        headers: headers,
+        body: json.encode({'quantity': quantity}),
+      );
+      return response.statusCode == 204 || response.statusCode == 200;
+    } catch (e) {
+      throw Exception('Error updating quantity: $e');
     }
   }
 

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../models/master_model.dart';
 import '../models/product_model.dart';
 import '../services/api_service.dart';
+import 'master_product_detail.dart';
 
 class MasterProductsScreen extends StatefulWidget {
   final MasterModel master;
@@ -80,6 +80,8 @@ class _MasterProductsScreenState extends State<MasterProductsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Этот экран — список товаров по мастеру/категории.
+    // Детальная карточка — master_product_detail.dart.
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -114,26 +116,37 @@ class _MasterProductsScreenState extends State<MasterProductsScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(
-                        'Товары ${widget.master.name}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'NauryzKeds',
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
+                      Center(
+                        child: FractionallySizedBox(
+                          widthFactor: 0.92,
+                          alignment: Alignment.center,
+                          child: Text(
+                            'Товары ${widget.master.name}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontFamily: 'NauryzKeds',
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        'Категория: ${widget.category}',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontFamily: 'NauryzKeds',
-                          fontSize: 16,
+                      Center(
+                        child: Text(
+                          'Категория: ${widget.category}',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontFamily: 'OpenSans',
+                            fontSize: 16,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
@@ -185,126 +198,133 @@ class _MasterProductsScreenState extends State<MasterProductsScreen> {
 
                                 // Список продуктов
                                 Expanded(
-                                  child: ListView.builder(
+                           child: ListView.builder(
                                     padding: const EdgeInsets.symmetric(horizontal: 24),
                                     itemCount: products.length,
                                     itemBuilder: (context, index) {
                                       final product = products[index];
-                                      return Container(
+                               return Container(
                                         margin: const EdgeInsets.only(bottom: 16),
                                         padding: const EdgeInsets.all(16),
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(12),
+                                   color: Colors.black.withOpacity(0.22),
+                                   borderRadius: BorderRadius.zero,
                                           border: Border.all(
-                                            color: Colors.white.withOpacity(0.2),
+                                     color: Colors.white24,
                                           ),
                                         ),
                                         child: Row(
                                           children: [
                                             // Изображение товара
-                                            Container(
-                                              width: 80,
-                                              height: 80,
-                                              decoration: BoxDecoration(
-                                                borderRadius: BorderRadius.circular(8),
-                                                image: DecorationImage(
-                                                  image: NetworkImage(product.avatar),
-                                                  fit: BoxFit.cover,
-                                                ),
-                                              ),
+                                      GestureDetector(
+                                       onTap: () {
+                                         Navigator.of(context).push(
+                                           MaterialPageRoute(
+                                             builder: (_) => MasterProductScreen(productId: product.id),
+                                           ),
+                                         );
+                                       },
+                                        child: Container(
+                                          width: 80,
+                                          height: 80,
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.zero,
+                                            border: Border.all(color: Colors.black, width: 1),
+                                            image: DecorationImage(
+                                              image: NetworkImage(product.avatar),
+                                              fit: BoxFit.cover,
                                             ),
-                                            const SizedBox(width: 16),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
                                             // Информация о товаре
                                             Expanded(
                                               child: Column(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
-                                                  Text(
-                                                    product.name,
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontFamily: 'NauryzKeds',
-                                                      fontSize: 16,
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                                    maxLines: 2,
-                                                    overflow: TextOverflow.ellipsis,
-                                                  ),
+                                           FractionallySizedBox(
+                                             widthFactor: 0.8,
+                                             alignment: Alignment.centerLeft,
+                                             child: Text(
+                                               product.name,
+                                               style: const TextStyle(
+                                                 color: Colors.white,
+                                                 fontFamily: 'NauryzKeds',
+                                                 fontSize: 16,
+                                                 fontWeight: FontWeight.bold,
+                                               ),
+                                               maxLines: 2,
+                                               overflow: TextOverflow.ellipsis,
+                                             ),
+                                           ),
                                                   const SizedBox(height: 4),
-                                                  Text(
-                                                    product.description,
-                                                    style: TextStyle(
-                                                      color: Colors.white.withOpacity(0.7),
-                                                      fontFamily: 'NauryzKeds',
-                                                      fontSize: 12,
-                                                    ),
-                                                    maxLines: 2,
-                                                    overflow: TextOverflow.ellipsis,
-                                                  ),
+                                            FractionallySizedBox(
+                                             widthFactor: 0.92,
+                                             alignment: Alignment.centerLeft,
+                                             child: Text(
+                                               product.description,
+                                               style: const TextStyle(
+                                                 color: Colors.white70,
+                                                 fontFamily: 'OpenSans',
+                                                 fontSize: 12,
+                                               ),
+                                               maxLines: 2,
+                                               overflow: TextOverflow.ellipsis,
+                                               textAlign: TextAlign.left,
+                                             ),
+                                           ),
                                                   const SizedBox(height: 8),
                                                   Row(
                                                     children: [
-                                                      Text(
-                                                        '${product.price} ₽',
-                                                        style: const TextStyle(
-                                                          color: Colors.white,
-                                                          fontFamily: 'NauryzKeds',
-                                                          fontSize: 18,
-                                                          fontWeight: FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                      if (product.oldPrice != null && product.oldPrice! > product.price)
-                                                        Padding(
-                                                          padding: const EdgeInsets.only(left: 8),
-                                                          child: Text(
-                                                            '${product.oldPrice} ₽',
-                                                            style: TextStyle(
-                                                              color: Colors.white.withOpacity(0.5),
-                                                              fontFamily: 'NauryzKeds',
-                                                              fontSize: 14,
-                                                              decoration: TextDecoration.lineThrough,
-                                                            ),
-                                                          ),
-                                                        ),
+                                               Container(
+                                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                 decoration: BoxDecoration(
+                                                   color: Colors.black.withOpacity(0.39),
+                                                   border: Border.all(color: Colors.white24, width: 1),
+                                                 ),
+                                                 child: Row(
+                                                   children: [
+                                                     if (product.oldPrice != null && product.oldPrice! > product.price)
+                                                       Padding(
+                                                         padding: const EdgeInsets.only(right: 8),
+                                                         child: Text(
+                                                           '${product.oldPrice!.toInt()} ₽',
+                                                           style: const TextStyle(
+                                                             color: Colors.white70,
+                                                             decoration: TextDecoration.lineThrough,
+                                                             fontSize: 14,
+                                                           ),
+                                                         ),
+                                                       ),
+                                                     Text(
+                                                       '${product.price.toInt()} ₽',
+                                                       style: const TextStyle(
+                                                         color: Colors.white,
+                                                         fontFamily: 'NauryzKeds',
+                                                         fontSize: 18,
+                                                         fontWeight: FontWeight.bold,
+                                                       ),
+                                                     ),
+                                                   ],
+                                                 ),
+                                               ),
                                                     ],
                                                   ),
                                                 ],
                                               ),
                                             ),
-                                            // Кнопка "Купить"
-                                            GestureDetector(
-                                              onTap: () {
-                                                // Формируем текст сообщения
-                                                final discountPrice = (product.price * 0.92).round(); // 8% скидка
-                                                final message = Uri.encodeComponent(
-                                                  'Привет! Хочу купить ${product.name}, цена со скидкой 8% - $discountPrice ₽, спасибо!'
-                                                );
-                                                final telegramUrl = 'https://t.me/GTM_ADM?text=$message';
-                                                
-                                                // Открываем Telegram
-                                                launchUrl(Uri.parse(telegramUrl));
-                                              },
-                                              child: Container(
-                                                padding: const EdgeInsets.symmetric(
-                                                  horizontal: 16,
-                                                  vertical: 8,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: const Color(0xFFFF6EC7),
-                                                  borderRadius: BorderRadius.circular(20),
-                                                ),
-                                                child: const Text(
-                                                  'Купить',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontFamily: 'NauryzKeds',
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
+                                     // Кнопка перехода в деталь
+                                     IconButton(
+                                       onPressed: () {
+                                         Navigator.of(context).push(
+                                           MaterialPageRoute(
+                                             builder: (_) => MasterProductScreen(productId: product.id),
+                                           ),
+                                         );
+                                       },
+                                       icon: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white),
+                                     ),
                                           ],
                                         ),
                                       );

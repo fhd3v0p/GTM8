@@ -112,11 +112,12 @@ class _MasterJoinInfoScreenState extends State<MasterJoinInfoScreen> with Ticker
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                // Одинаковый отступ сверху/снизу для списка баннеров зададим padding у ListView
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
                       itemCount: advantages.length,
                       itemBuilder: (context, i) {
                         final item = advantages[i];
@@ -159,11 +160,11 @@ class _MasterJoinInfoScreenState extends State<MasterJoinInfoScreen> with Ticker
                     ),
                   ),
                 ),
-                // Кнопка присоединиться с теми же отступами, что и баннеры
+                // Кнопка присоединиться: те же горизонтальные поля и нижний отступ, зеркальный верхний отступ к списку
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                   child: Container(
-                    margin: const EdgeInsets.only(bottom: 24, top: 0),
+                    margin: EdgeInsets.zero,
                     width: double.infinity,
                     height: 56,
                     decoration: BoxDecoration(

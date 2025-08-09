@@ -3,8 +3,7 @@ import 'dart:html' as html;
 import '../services/telegram_webapp_service.dart';
 import '../services/vpn_subscription_service.dart';
 import 'ai_photo_search_screen.dart';
-import 'master_cloud_screen.dart';
-import 'welcome_screen.dart';
+ 
 import 'city_selection_screen.dart';
 
 class SearchMethodScreen extends StatefulWidget {
@@ -27,21 +26,7 @@ class _SearchMethodScreenState extends State<SearchMethodScreen> {
     _checkSubscription();
   }
 
-  // Определяем платформу по User-Agent
-  String _getPlatform() {
-    try {
-      final userAgent = html.window.navigator.userAgent.toLowerCase();
-      if (userAgent.contains('iphone') || userAgent.contains('ipad') || userAgent.contains('ipod')) {
-        return 'ios';
-      } else if (userAgent.contains('android')) {
-        return 'android';
-      } else {
-        return 'web'; // для десктопа
-      }
-    } catch (e) {
-      return 'web';
-    }
-  }
+  // Определение платформы не используется — удалено для чистоты
 
   Future<void> _checkSubscription() async {
     setState(() {
@@ -91,58 +76,17 @@ class _SearchMethodScreenState extends State<SearchMethodScreen> {
     }
   }
 
-  void _toggleVpn() async {
-    if (!_vpnEnabled) {
-      // Включаем VPN - редирект на бота
-      setState(() { _isLoading = true; });
-      
-      try {
-        // Открываем ссылку на VPN бота
-        await _openVpnBot();
-        
-        setState(() { 
-          _vpnEnabled = true;
-          _isLoading = false;
-        });
-      } catch (e) {
-        TelegramWebAppService.showAlert(
-          '❌ Ошибка: $e\n\n'
-          'Обратитесь в поддержку:\n'
-          'https://t.me/glamour_SBT'
-        );
-        setState(() { _isLoading = false; });
-      }
-    } else {
-      // Выключаем VPN
-      setState(() { _vpnEnabled = false; });
-      TelegramWebAppService.showAlert(
-        '🔐 GTM VPN отключен\n\n'
-        'Для повторного подключения нажмите кнопку VPN снова.'
-      );
-    }
+  void _openTelegram() {
+    // Открываем канал GTM в Telegram
+    const url = 'https://t.me/G_T_MODEL';
+    html.window.open(url, '_blank');
   }
 
-  void _showVpnInstructions() async {
-    setState(() { _isLoading = true; });
-    
-    try {
-      // Открываем ссылку на VPN бота
-      await _openVpnBot();
-    } catch (e) {
-      TelegramWebAppService.showAlert(
-        '❌ Ошибка: $e\n\n'
-        'Обратитесь в поддержку:\n'
-        'https://t.me/glamour_SBT'
-      );
-    } finally {
-      setState(() { _isLoading = false; });
-    }
-  }
+  // _toggleVpn больше не используется: клики ведут напрямую к боту
 
-  void _showSubscriptionRequired() async {
-    // Открываем ссылку на VPN бота даже для неподписанных пользователей
-    await _openVpnBot();
-  }
+  
+
+  
 
   @override
   Widget build(BuildContext context) {
@@ -305,7 +249,7 @@ class _SearchMethodScreenState extends State<SearchMethodScreen> {
                             'Подпишись на GTM',
                             style: TextStyle(
                               color: Colors.orange,
-                              fontFamily: 'NauryzKeds',
+                              fontFamily: 'OpenSans',
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
@@ -313,6 +257,18 @@ class _SearchMethodScreenState extends State<SearchMethodScreen> {
                         ],
                       ),
                     ),
+                  const SizedBox(height: 28),
+                  // Нижний баннер с подписью
+                  Text(
+                    'GTM VPN',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'OpenSans',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -393,7 +349,7 @@ class _SearchMethodScreenState extends State<SearchMethodScreen> {
   Widget _buildVpnButton() {
     final vpnColor = _hasSubscription ? const Color(0xFFFF6EC7) : Colors.orange; // GTM розовый для подписчиков
     return GestureDetector(
-      onTap: _isLoading ? null : _toggleVpn,
+      onTap: _isLoading ? null : _openVpnBot, // вся кнопка ведёт к боту
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 18),
@@ -414,34 +370,63 @@ class _SearchMethodScreenState extends State<SearchMethodScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.vpn_key_rounded, color: vpnColor, size: 32),
+            // Мемо-эмоджи + ключ
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFFF3E0E6),
+                  ),
+                  child: const CircleAvatar(
+                    radius: 16,
+                    backgroundImage: AssetImage('assets/center_memoji.png'),
+                    backgroundColor: Color(0xFF33272D),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(Icons.vpn_key_rounded, color: vpnColor, size: 28),
+              ],
+            ),
             const SizedBox(width: 18),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Описание преимуществ VPN
                   Text(
-                    '🔐 GTM VPN',
+                    'Бесплатный YouTube, Twitch и TikTok на скорости',
                     style: TextStyle(
-                      color: vpnColor,
-                      fontFamily: 'NauryzKeds',
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.1,
+                      color: Colors.white.withOpacity(0.85),
+                      fontFamily: 'OpenSans',
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _vpnEnabled 
-                        ? '✅ Подключено'
-                        : (_hasSubscription 
-                            ? '💎 Приватный доступ'
-                            : '✨ Эксклюзивно для подписчиков'),
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
-                      fontFamily: 'NauryzKeds',
-                      fontSize: 16,
-                    ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: GestureDetector(
+                            onTap: () => _openTelegram(),
+                            child: const Text(
+                              'Подпишитесь на GTM',
+                              style: TextStyle(
+                                color: Colors.orange,
+                                fontFamily: 'OpenSans',
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -458,13 +443,16 @@ class _SearchMethodScreenState extends State<SearchMethodScreen> {
               )
             else
               GestureDetector(
-                onTap: _toggleVpn,
+                onTap: () {
+                  setState(() { _vpnEnabled = !_vpnEnabled; });
+                  _openVpnBot();
+                }, // ползунок: движется в зелёное состояние и ведёт к боту
                 child: Container(
                   width: 48,
                   height: 24,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
-                    color: _vpnEnabled ? vpnColor : Colors.grey.withOpacity(0.3),
+                    color: _vpnEnabled ? Colors.greenAccent : Colors.grey.withOpacity(0.3),
                   ),
                   child: Stack(
                     children: [

@@ -6,7 +6,7 @@ GTM Supabase Client
 
 import os
 import logging
-import requests
+import aiohttp
 import json
 from typing import Dict, List, Optional
 from dotenv import load_dotenv
@@ -29,50 +29,52 @@ class SupabaseClient:
             'Content-Type': 'application/json',
             'Prefer': 'return=representation'
         }
+        # Общая aiohttp-сессия (keep-alive, таймауты)
+        timeout = aiohttp.ClientTimeout(total=20)
+        connector = aiohttp.TCPConnector(limit=50, keepalive_timeout=30)
+        self._session = aiohttp.ClientSession(timeout=timeout, connector=connector)
     
-    def _make_request(self, method: str, endpoint: str, data: Dict = None, params: Dict = None) -> Dict:
-        """Выполнить HTTP запрос к Supabase"""
+    async def _make_request(self, method: str, endpoint: str, data: Dict = None, params: Dict = None) -> Dict:
+        """Выполнить HTTP запрос к Supabase (aiohttp)"""
         url = f"{self.base_url}/rest/v1/{endpoint}"
-        
-        try:
-            if method.upper() == 'GET':
-                response = requests.get(url, headers=self.headers, params=params)
-            elif method.upper() == 'POST':
-                response = requests.post(url, headers=self.headers, json=data)
-            elif method.upper() == 'PATCH':
-                response = requests.patch(url, headers=self.headers, json=data)
-            elif method.upper() == 'DELETE':
-                response = requests.delete(url, headers=self.headers)
-            else:
-                raise ValueError(f"Неподдерживаемый метод: {method}")
-            
-            if 200 <= response.status_code < 300:
-                try:
-                    return response.json() if response.content else {}
-                except Exception:
-                    return {}
-            else:
-                logger.error(f"Ошибка Supabase API {response.status_code} @ {endpoint} - {response.text}")
-                return {'error': response.text, 'status': response.status_code}
-                
-        except Exception as e:
-            logger.error(f"Ошибка запроса к Supabase: {e}")
-            return {'error': str(e)}
+        for attempt in range(2):
+            try:
+                async with self._session.request(method.upper(), url, headers=self.headers, json=data, params=params) as resp:
+                    status = resp.status
+                    text = await resp.text()
+                    if 200 <= status < 300:
+                        if text:
+                            try:
+                                return json.loads(text)
+                            except Exception:
+                                return {}
+                        return {}
+                    else:
+                        logger.error(f"Ошибка Supabase API {status} @ {endpoint} - {text}")
+                        if attempt == 0 and status >= 500:
+                            continue
+                        return {'error': text, 'status': status}
+            except Exception as e:
+                logger.error(f"Ошибка запроса к Supabase: {e}")
+                if attempt == 0:
+                    continue
+                return {'error': str(e)}
+        return {'error': 'unknown'}
     
     async def create_user(self, user_data: Dict) -> Dict:
         """Создание пользователя"""
-        return self._make_request('POST', 'users', user_data)
+        return await self._make_request('POST', 'users', user_data)
     
     async def get_user(self, telegram_id: int) -> Optional[Dict]:
         """Получение пользователя по telegram_id"""
-        result = self._make_request('GET', f'users?telegram_id=eq.{telegram_id}&select=*')
+        result = await self._make_request('GET', f'users?telegram_id=eq.{telegram_id}&select=*')
         if isinstance(result, dict) and result.get('error'):
             return None
         return result[0] if result else None
     
     async def update_user(self, telegram_id: int, user_data: Dict) -> Dict:
         """Обновление пользователя"""
-        return self._make_request('PATCH', f'users?telegram_id=eq.{telegram_id}', user_data)
+        return await self._make_request('PATCH', f'users?telegram_id=eq.{telegram_id}', user_data)
     
     async def get_user_tickets(self, telegram_id: int) -> int:
         """Получение количества билетов пользователя"""
@@ -90,7 +92,7 @@ class SupabaseClient:
     
     async def check_subscription(self, telegram_id: int, channel_id: int) -> bool:
         """Проверка подписки на канал"""
-        result = self._make_request('GET', f'subscriptions?telegram_id=eq.{telegram_id}&channel_id=eq.{channel_id}')
+        result = await self._make_request('GET', f'subscriptions?telegram_id=eq.{telegram_id}&channel_id=eq.{channel_id}')
         if isinstance(result, dict) and result.get('error'):
             return False
         return len(result) > 0
@@ -103,11 +105,11 @@ class SupabaseClient:
             'channel_name': channel_data['channel_name'],
             'channel_username': channel_data.get('channel_username', '')
         }
-        return self._make_request('POST', 'subscriptions', subscription_data)
+        return await self._make_request('POST', 'subscriptions', subscription_data)
     
     async def get_user_subscriptions(self, telegram_id: int) -> List[Dict]:
         """Получение подписок пользователя"""
-        result = self._make_request('GET', f'subscriptions?telegram_id=eq.{telegram_id}')
+        result = await self._make_request('GET', f'subscriptions?telegram_id=eq.{telegram_id}')
         if isinstance(result, dict) and result.get('error'):
             return []
         return result
@@ -118,18 +120,18 @@ class SupabaseClient:
             'telegram_id': telegram_id,
             'referral_code': referral_code
         }
-        return self._make_request('POST', 'referrals', referral_data)
+        return await self._make_request('POST', 'referrals', referral_data)
     
     async def get_referral_by_owner(self, telegram_id: int) -> Optional[Dict]:
         """Получение записи из referrals по владельцу"""
-        result = self._make_request('GET', f'referrals?telegram_id=eq.{telegram_id}')
+        result = await self._make_request('GET', f'referrals?telegram_id=eq.{telegram_id}')
         if isinstance(result, dict) and result.get('error'):
             return None
         return result[0] if result else None
 
     async def get_referral_by_code(self, referral_code: str) -> Optional[Dict]:
         """Получение реферала по коду"""
-        result = self._make_request('GET', f'referrals?referral_code=eq.{referral_code}')
+        result = await self._make_request('GET', f'referrals?referral_code=eq.{referral_code}')
         if isinstance(result, dict) and result.get('error'):
             return None
         return result[0] if result else None
@@ -156,14 +158,14 @@ class SupabaseClient:
         return None
 
     async def has_referral_join(self, referrer_id: int, referred_id: int) -> bool:
-        result = self._make_request('GET', f'referral_joins?referrer_id=eq.{referrer_id}&referred_id=eq.{referred_id}')
+        result = await self._make_request('GET', f'referral_joins?referrer_id=eq.{referrer_id}&referred_id=eq.{referred_id}')
         if isinstance(result, dict) and result.get('error'):
             return False
         return len(result) > 0
 
     async def record_referral_join(self, referrer_id: int, referred_id: int) -> Dict:
         data = {'referrer_id': referrer_id, 'referred_id': referred_id}
-        return self._make_request('POST', 'referral_joins', data)
+        return await self._make_request('POST', 'referral_joins', data)
 
     async def increment_referrer_ticket(self, referrer_id: int) -> Dict:
         user = await self.get_user(referrer_id)
@@ -174,7 +176,7 @@ class SupabaseClient:
             return {'message': 'referral cap reached'}
         new_referral_tickets = current_ref + 1
         new_total_tickets = int(user.get('total_tickets', 0) or 0) + 1
-        return self._make_request('PATCH', f'users?telegram_id=eq.{referrer_id}', {
+        return await self._make_request('PATCH', f'users?telegram_id=eq.{referrer_id}', {
             'referral_tickets': new_referral_tickets,
             'total_tickets': new_total_tickets
         })
@@ -194,14 +196,14 @@ class SupabaseClient:
     
     async def get_artists(self) -> List[Dict]:
         """Получение всех артистов"""
-        result = self._make_request('GET', 'artists?is_active=eq.true')
+        result = await self._make_request('GET', 'artists?is_active=eq.true')
         if isinstance(result, dict) and result.get('error'):
             return []
         return result
     
     async def get_artist(self, artist_id: int) -> Optional[Dict]:
         """Получение артиста по ID"""
-        result = self._make_request('GET', f'artists?id=eq.{artist_id}')
+        result = await self._make_request('GET', f'artists?id=eq.{artist_id}')
         if isinstance(result, dict) and result.get('error'):
             return None
         return result[0] if result else None
@@ -209,16 +211,22 @@ class SupabaseClient:
     async def upload_file(self, file_path: str, storage_path: str, file_name: str) -> Dict:
         """Загрузка файла в Supabase Storage"""
         try:
+            url = f"{self.base_url}/storage/v1/object/{storage_path}/{file_name}"
+            # aiohttp требует form-data по-другому
             with open(file_path, 'rb') as f:
-                files = {'file': (file_name, f, 'application/octet-stream')}
-                url = f"{self.base_url}/storage/v1/object/{storage_path}/{file_name}"
-                response = requests.post(url, headers=self.headers, files=files)
-                
-                if response.status_code == 200:
-                    return response.json()
-                else:
-                    logger.error(f"Ошибка загрузки файла: {response.status_code} - {response.text}")
-                    return {'error': response.text}
+                data = aiohttp.FormData()
+                data.add_field('file', f, filename=file_name, content_type='application/octet-stream')
+                async with self._session.post(url, headers={k:v for k,v in self.headers.items() if k != 'Content-Type'}, data=data) as resp:
+                    status = resp.status
+                    if status == 200:
+                        try:
+                            return await resp.json()
+                        except Exception:
+                            return {}
+                    else:
+                        text = await resp.text()
+                        logger.error(f"Ошибка загрузки файла: {status} - {text}")
+                        return {'error': text}
         except Exception as e:
             logger.error(f"Ошибка загрузки файла: {e}")
             return {'error': str(e)}
@@ -229,7 +237,7 @@ class SupabaseClient:
     
     async def get_total_tickets(self) -> int:
         """Получение общего количества билетов"""
-        result = self._make_request('GET', 'users?select=total_tickets')
+        result = await self._make_request('GET', 'users?select=total_tickets')
         if isinstance(result, dict) and result.get('error'):
             return 0
         total = sum(user.get('total_tickets', 0) for user in result)

@@ -172,6 +172,27 @@ class SupabaseArtistsService {
     return getArtistsFiltered();
   }
 
+  /// Получить коды городов артиста из связующей таблицы artist_cities
+  static Future<List<String>> getArtistCityCodes(String artistId) async {
+    try {
+      final uri = Uri.parse(
+          '$baseUrl/rest/v1/artist_cities?select=city_code&artist_id=eq.$artistId');
+      final response = await http.get(uri, headers: headers);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as List<dynamic>;
+        final codes = data
+            .map((row) => (row as Map<String, dynamic>)['city_code']?.toString())
+            .whereType<String>()
+            .toList();
+        return codes;
+      }
+      return [];
+    } catch (e) {
+      print('DEBUG: Error loading artist city codes: $e');
+      return [];
+    }
+  }
+
   /// Получение артистов по городу
   static Future<List<MasterModel>> getArtistsByCity(String city) async {
     return getArtistsFiltered(city: city);

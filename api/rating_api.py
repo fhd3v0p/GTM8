@@ -9,6 +9,8 @@ from flask_cors import CORS
 import requests
 import json
 import os
+import random
+from typing import List, Dict, Any, Optional
 
 app = Flask(__name__)
 CORS(app)
@@ -38,6 +40,82 @@ SUBSCRIPTION_CHANNELS = [
     { 'channel_id': -1001767997947, 'channel_username': 'bloodivamp', 'channel_name': 'bloodivamp' },
     { 'channel_id': -1001973736826, 'channel_username': 'G_T_MODEL', 'channel_name': "Gothams top model" },
 ]
+
+# === Helpers ===
+def _get_supabase_rows(endpoint: str, select: Optional[str] = None, params: Optional[Dict[str, Any]] = None) -> Any:
+    q = params.copy() if params else {}
+    if select:
+        q['select'] = select
+    resp = requests.get(f"{SUPABASE_URL}/rest/v1/{endpoint}", headers=supabase_headers, params=q, timeout=20)
+    if resp.status_code in (200, 206):
+        return resp.json() if resp.content else []
+    raise RuntimeError(f"supabase get {endpoint} {resp.status_code}: {resp.text}")
+
+def _insert_supabase_rows(endpoint: str, rows: List[Dict[str, Any]], prefer: str = 'return=representation') -> Any:
+    headers = {**supabase_headers, 'Prefer': prefer}
+    resp = requests.post(f"{SUPABASE_URL}/rest/v1/{endpoint}", headers=headers, json=rows, timeout=30)
+    if resp.status_code in (200, 201):
+        return resp.json() if resp.content else []
+    raise RuntimeError(f"supabase insert {endpoint} {resp.status_code}: {resp.text}")
+
+def _get_user_map_by_telegram_id() -> Dict[int, Dict[str, Any]]:
+    rows = _get_supabase_rows('users', select='telegram_id,username,first_name,subscription_tickets,referral_tickets,total_tickets')
+    out: Dict[int, Dict[str, Any]] = {}
+    for r in rows:
+        try:
+            tid = int(r.get('telegram_id'))
+        except Exception:
+            continue
+        out[tid] = r
+    return out
+
+def _is_user_subscribed_to_all_now(telegram_id: int) -> bool:
+    if not TELEGRAM_BOT_TOKEN:
+        return False
+    try:
+        for ch in SUBSCRIPTION_CHANNELS:
+            url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getChatMember"
+            r = requests.get(url, params={'chat_id': ch['channel_id'], 'user_id': telegram_id}, timeout=15)
+            if r.status_code != 200:
+                return False
+            st = (r.json() or {}).get('result', {}).get('status')
+            if st not in ('member', 'administrator', 'creator'):
+                return False
+        return True
+    except Exception:
+        return False
+
+def _weighted_choice(candidates: List[Dict[str, Any]]) -> Optional[int]:
+    total = 0
+    weights: List[int] = []
+    ids: List[int] = []
+    for c in candidates:
+        try:
+            tid = int(c.get('telegram_id'))
+        except Exception:
+            continue
+        w = int(c.get('total_tickets', 0) or 0)
+        if w <= 0:
+            continue
+        ids.append(tid)
+        weights.append(w)
+        total += w
+    if total <= 0 or not ids:
+        return None
+    pick = random.randint(1, total)
+    acc = 0
+    for idx, w in enumerate(weights):
+        acc += w
+        if pick <= acc:
+            return ids[idx]
+    return ids[-1]
+
+def _build_prize(place_number: int) -> Dict[str, str]:
+    if place_number == 1:
+        return {'prize_name': 'Главный приз', 'prize_value': '20 000 ₽ Золотое яблоко'}
+    if 2 <= place_number <= 5:
+        return {'prize_name': 'Бьюти услуга на выбор', 'prize_value': 'Приз можно заменить на Telegram Premium'}
+    return {'prize_name': 'Футболка', 'prize_value': 'Футболка GTM'}
 
 # === API for Giveaway (X/Y and referrals) ===
 @app.route('/api/giveaway/total_all', methods=['GET'])
@@ -326,6 +404,110 @@ def get_artist_rating(artist_name):
 def health_check():
     """Проверка работоспособности API"""
     return jsonify({"status": "ok", "message": "Rating API is working"})
+
+
+# === Giveaway Winners Generation and Retrieval ===
+@app.route('/api/giveaway/generate-results', methods=['POST'])
+def generate_giveaway_results():
+    try:
+        body = request.get_json() or {}
+        giveaway_id = int(body.get('giveaway_id', 0))
+        if not giveaway_id:
+            return jsonify({'success': False, 'message': 'giveaway_id required'}), 400
+
+        # If results already exist, return them
+        existing = _get_supabase_rows('giveaway_winners', params={'giveaway_id': f'eq.{giveaway_id}'}, select='*')
+        if isinstance(existing, list) and existing:
+            return jsonify({'success': True, 'results': sorted(existing, key=lambda r: int(r.get('place_number', 0)))})
+
+        users_map = _get_user_map_by_telegram_id()
+        users: List[Dict[str, Any]] = [
+            {**u, 'telegram_id': int(tid)} for tid, u in users_map.items() if int(u.get('total_tickets', 0) or 0) > 0
+        ]
+        if not users:
+            return jsonify({'success': False, 'message': 'no eligible users'}), 400
+
+        # Manual winner for 1st place from giveaways.manual_winner_telegram_id
+        manual_tid: Optional[int] = None
+        try:
+            g_rows = _get_supabase_rows('giveaways', params={'id': f'eq.{giveaway_id}'}, select='id,manual_winner_telegram_id')
+            if isinstance(g_rows, list) and g_rows:
+                raw_id = g_rows[0].get('manual_winner_telegram_id')
+                manual_tid = int(raw_id) if raw_id is not None else None
+        except Exception:
+            manual_tid = None
+
+        winners: List[Dict[str, Any]] = []
+
+        # Place 1: manual (if provided and exists among users), else weighted
+        first_tid: Optional[int] = None
+        if manual_tid and manual_tid in users_map:
+            first_tid = manual_tid
+        else:
+            first_tid = _weighted_choice(users)
+        if first_tid:
+            u = users_map.get(first_tid, {})
+            p = _build_prize(1)
+            winners.append({
+                'giveaway_id': giveaway_id,
+                'place_number': 1,
+                'winner_telegram_id': int(first_tid),
+                'winner_username': u.get('username') or '',
+                'winner_first_name': u.get('first_name') or '',
+                'prize_name': p['prize_name'],
+                'prize_value': p['prize_value'],
+                'is_manual_winner': bool(manual_tid and manual_tid == first_tid),
+            })
+
+        used_ids = {w['winner_telegram_id'] for w in winners}
+
+        # Places 2..6: weighted, with subscription re-check for users who possess subscription tickets
+        target_places = [2, 3, 4, 5, 6]
+        max_attempts = 500
+        attempts = 0
+        while target_places and attempts < max_attempts:
+            attempts += 1
+            candidate_id = _weighted_choice(users)
+            if not candidate_id:
+                break
+            if candidate_id in used_ids:
+                continue
+            u = users_map.get(candidate_id, {})
+            has_sub_ticket = int(u.get('subscription_tickets', 0) or 0) > 0
+            if has_sub_ticket and not _is_user_subscribed_to_all_now(candidate_id):
+                continue
+            place = target_places.pop(0)
+            p = _build_prize(place)
+            winners.append({
+                'giveaway_id': giveaway_id,
+                'place_number': place,
+                'winner_telegram_id': int(candidate_id),
+                'winner_username': u.get('username') or '',
+                'winner_first_name': u.get('first_name') or '',
+                'prize_name': p['prize_name'],
+                'prize_value': p['prize_value'],
+                'is_manual_winner': False,
+            })
+            used_ids.add(candidate_id)
+
+        if len(winners) < 6:
+            return jsonify({'success': False, 'message': f'could not fill winners, selected {len(winners)}'}), 500
+
+        created = _insert_supabase_rows('giveaway_winners', winners)
+        return jsonify({'success': True, 'results': sorted(created, key=lambda r: int(r.get('place_number', 0)))})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/giveaway/results/<int:giveaway_id>', methods=['GET'])
+def get_giveaway_results(giveaway_id: int):
+    try:
+        rows = _get_supabase_rows('giveaway_winners', params={'giveaway_id': f'eq.{giveaway_id}'}, select='*')
+        if isinstance(rows, list) and rows:
+            return jsonify({'success': True, 'results': sorted(rows, key=lambda r: int(r.get('place_number', 0)))})
+        return jsonify({'success': True, 'results': []})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

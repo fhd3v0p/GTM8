@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-import 'master_cloud_screen.dart' as mcs;
+import 'dart:html' as html;
 import '../services/telegram_webapp_service.dart';
 
 import '../models/photo_upload_model.dart';
 import 'dart:math';
 import '../models/master_model.dart';
 import 'master_detail_screen.dart';
-import 'master_product_screen.dart';
+import '../services/artists_service.dart';
 import '../models/categories.dart';
+ 
 // import 'choose_search_mode_screen.dart';
 import 'welcome_screen.dart';
 
@@ -19,82 +20,70 @@ class AiPhotoSearchScreen extends StatefulWidget {
 }
 
 class _AiPhotoSearchScreenState extends State<AiPhotoSearchScreen> {
-  late List<String> categories;
-  String? selectedCategory;
+  // Убираем выбор категории: выбираем случайного мастера из всех доступных
   bool _isUploading = false;
   PhotoUploadModel? _lastUploadedPhoto;
 
   @override
   void initState() {
     super.initState();
-    // Получаем категории из master_cloud_screen.dart
-    categories = mcs.MasterCloudScreen.categories;
-    selectedCategory = categories.isNotEmpty ? categories.first : null;
     TelegramWebAppService.disableVerticalSwipe();
   }
 
   Future<void> _uploadPhoto() async {
-    if (selectedCategory == null) {
-      _showError('Пожалуйста, выберите категорию');
-      return;
-    }
-
-    // Убираем проверку на Telegram Web App - теперь работает везде
+    // HTML5 выбор файла
+    final input = html.FileUploadInputElement();
+    input.accept = 'image/*';
+    input.click();
+    await input.onChange.first;
+    if (input.files == null || input.files!.isEmpty) return;
+    final file = input.files!.first;
 
     setState(() {
       _isUploading = true;
+      _lastUploadedPhoto = PhotoUploadModel(
+        id: 'mock',
+        userId: 'mock',
+        category: 'ai',
+        fileId: 'mock',
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type.isNotEmpty ? file.type : 'application/octet-stream',
+        uploadDate: DateTime.now(),
+        description: 'AI photo search reference (mock)',
+      );
     });
 
     try {
-      final photoUpload = await TelegramWebAppService.uploadPhoto(
-        category: selectedCategory!,
-        description: 'AI photo search reference',
-      );
+      // Показать экран загрузки с анимацией
+      await Navigator.of(context).push(PageRouteBuilder(
+        opaque: false,
+        pageBuilder: (_, __, ___) => const _AiPhotoLoadingScreen(),
+      ));
 
-      if (photoUpload != null) {
-        setState(() { _lastUploadedPhoto = photoUpload; });
-        // Список папок артистов как в master_cloud_screen.dart
-        final artistFolders = [
-          'assets/artists/Lin++',
-          'assets/artists/Blodivamp',
-          'assets/artists/Aspergill',
-          'assets/artists/EMI',
-          'assets/artists/Naidi',
-          'assets/artists/MurderDoll',
-          'assets/artists/poterya',
-          'assets/artists/alena',
-          'assets/artists/msk_tattoo_EMI',
-          'assets/artists/msk_tattoo_Alena',
-        ];
-        // Показать экран загрузки с анимацией (welcome-style)
-        await Navigator.of(context).push(PageRouteBuilder(
-          opaque: false,
-          pageBuilder: (_, __, ___) => const _AiPhotoLoadingScreen(),
-        ));
-        final allMasters = await MasterModel.loadAllFromFolders(artistFolders);
-        final filtered = allMasters.where((m) => m.category == selectedCategory).toList();
-        if (filtered.isNotEmpty) {
-          // Случайно: либо мастер деталь, либо продукт деталь для GTM BRAND и др.
-          final isProduct = MasterCloudCategories.isProductCategory(selectedCategory!);
-          final random = Random().nextBool();
-          if (isProduct && random) {
-            // Переходим к первому продукту категории (заглушка: productId='1')
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => MasterProductScreen(productId: '1'),
-              ),
-            );
-          } else {
-            final randomArtist = filtered[Random().nextInt(filtered.length)];
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => _AiPhotoResultScreen(master: randomArtist),
-              ),
-            );
-          }
-        } else {
-          _showError('Не найдено артистов в выбранной категории');
+      // Берём случайного артиста из любой услуговой категории (как в MasterCloud)
+      final rnd = Random();
+      final serviceCats = List<String>.from(MasterCloudCategories.serviceCategories)..shuffle(rnd);
+      List<MasterModel> masters = [];
+      for (final cat in serviceCats) {
+        final list = await ArtistsService.getArtists(category: cat);
+        if (list.isNotEmpty) {
+          masters = list;
+          break;
         }
+      }
+      // если по конкретным категориям пусто — берём всех и фильтруем по услугам
+      if (masters.isEmpty) {
+        final all = await ArtistsService.getAllArtists();
+        masters = all.where((m) => MasterCloudCategories.isServiceCategory(m.category)).toList();
+      }
+      if (masters.isNotEmpty) {
+        final randomArtist = masters[rnd.nextInt(masters.length)];
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => _AiPhotoResultScreen(master: randomArtist)),
+        );
+      } else {
+        _showError('Не найдено артистов в услуговых категориях');
       }
     } catch (e) {
       _showError(e.toString());
@@ -149,7 +138,7 @@ class _AiPhotoSearchScreenState extends State<AiPhotoSearchScreen> {
                   const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 60),
                   const SizedBox(height: 24),
                   const Text(
-                    'Выберите категорию',
+                    'Загрузите фото-референс',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white,
@@ -159,49 +148,27 @@ class _AiPhotoSearchScreenState extends State<AiPhotoSearchScreen> {
                       letterSpacing: 1.2,
                     ),
                   ),
-                  const SizedBox(height: 18),
-                  DropdownButton<String>(
-                    value: selectedCategory,
-                    dropdownColor: Colors.black87,
-                    iconEnabledColor: Colors.white,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontFamily: 'NauryzKeds',
-                      fontSize: 18,
-                    ),
-                    items: categories
-                        .map((cat) => DropdownMenuItem(
-                              value: cat,
-                              child: Text(cat),
-                            ))
-                        .toList(),
-                    onChanged: (val) {
-                      setState(() {
-                        selectedCategory = val;
-                      });
-                    },
-                  ),
                   const SizedBox(height: 32),
                   const Text(
                     'Загрузите фото-референс\nдля AI-подбора артиста',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white,
-                      fontFamily: 'NauryzKeds',
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
+                      fontFamily: 'OpenSans',
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.4,
                     ),
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'Поддерживаются только фото и видео файлы\nМаксимальный размер: 10MB',
+                    'Поддерживаются только фото. Максимум: 10MB.\nСистемная информация будет удалена.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white70,
-                      fontFamily: 'NauryzKeds',
-                      fontSize: 14,
-                      fontWeight: FontWeight.w300,
+                      fontFamily: 'OpenSans',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -219,19 +186,11 @@ class _AiPhotoSearchScreenState extends State<AiPhotoSearchScreen> {
                           const SizedBox(height: 8),
                           Text(
                             'Фото загружено: ${_lastUploadedPhoto!.fileName}',
-                            style: const TextStyle(
-                              color: Colors.green,
-                              fontFamily: 'NauryzKeds',
-                              fontSize: 14,
-                            ),
+                            style: const TextStyle(color: Colors.green, fontFamily: 'OpenSans', fontSize: 13),
                           ),
                           Text(
                             'Категория: ${_lastUploadedPhoto!.category}',
-                            style: const TextStyle(
-                              color: Colors.green,
-                              fontFamily: 'NauryzKeds',
-                              fontSize: 12,
-                            ),
+                            style: const TextStyle(color: Colors.green, fontFamily: 'OpenSans', fontSize: 12),
                           ),
                         ],
                       ),
@@ -373,13 +332,13 @@ class _AiPhotoLoadingScreenState extends State<_AiPhotoLoadingScreen> with Ticke
   late final Animation<double> _pulseAnimation;
   double _orbitAngle = 0.0;
   final List<String> avatars = [
-    'assets/avatar1.png',
-    'assets/avatar2.png',
-    'assets/avatar3.png',
-    'assets/avatar4.png',
-    'assets/avatar5.png',
-    'assets/avatar6.png',
-  ];
+      'assets/avatar1.png',
+      'assets/avatar2.png',
+      'assets/avatar3.png',
+      'assets/avatar7.png',
+      'assets/avatar5.png',
+      'assets/avatar6.png',
+    ];
   @override
   void initState() {
     super.initState();
@@ -520,8 +479,7 @@ class _AiPhotoLoadingScreenState extends State<_AiPhotoLoadingScreen> with Ticke
 
 class _DetailModeButton extends StatelessWidget {
   final VoidCallback onTap;
-  final bool selected;
-  const _DetailModeButton({required this.onTap, this.selected = false});
+  const _DetailModeButton({required this.onTap});
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -532,19 +490,9 @@ class _DetailModeButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 18),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.zero,
-          color: Colors.black.withOpacity(selected ? 0.45 : 0.45),
-          border: Border.all(
-            color: selected ? const Color(0xFFFF6EC7) : Colors.white,
-            width: selected ? 3 : 1.5,
-          ),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFFFF6EC7).withOpacity(0.25),
-                    blurRadius: 16,
-                  ),
-                ]
-              : [],
+          color: Colors.black.withOpacity(0.45),
+          border: Border.all(color: Colors.white, width: 1.5),
+          boxShadow: const [],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,

@@ -6,9 +6,22 @@ import 'dart:async';
 import 'dart:html' as html;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/foundation.dart';
+import 'city_selection_screen.dart' show DottedCirclePainter;
 import '../services/telegram_webapp_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import 'giveaway_results_screen.dart';
+import '../services/giveaway_supabase_service.dart';
+
+// Заглушка для будущего демонстрационного перехода на экран результатов
+// В проде держим false, чтобы ничего не отображалось и автоперехода не было
+const bool kEnableGiveawayResultsDemo = false;
+const int kGiveawayResultsDemoDelaySec = 10;
+// Показать кнопку DEBUG на экране гивевея
+const bool kShowGiveawayDebugButton = false;
+// DEBUG-фоллбек отключён: используем только ID из плагина Telegram WebApp
+const bool kUseDebugTelegramIdForX = false;
+const String kDebugTelegramUserId = '5237968922';
 
 class GiveawayScreen extends StatefulWidget {
   const GiveawayScreen({super.key});
@@ -58,22 +71,87 @@ class _GiveawayScreenState extends State<GiveawayScreen> {
       _updateTimeLeft();
     });
     _loadSavedState();
-    // Имитация загрузки результатов гивевея на 10 секунд
-    _initialDelayLeft = 10;
-    _initialDelayTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) {
-        t.cancel();
-        return;
-      }
-      if (_initialDelayLeft > 0) {
-        setState(() { _initialDelayLeft--; });
-      }
-      if (_initialDelayLeft <= 0) {
-        t.cancel();
-        setState(() { _isInitialLoading = false; });
-        _fetchUserTickets();
-      }
-    });
+    // Заглушка: при kEnableGiveawayResultsDemo == true запускаем демо-таймер и автопереход
+    if (kEnableGiveawayResultsDemo) {
+      _initialDelayLeft = kGiveawayResultsDemoDelaySec;
+      _initialDelayTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+        if (!mounted) {
+          t.cancel();
+          return;
+        }
+        if (_initialDelayLeft > 0) {
+          setState(() { _initialDelayLeft--; });
+        }
+        if (_initialDelayLeft <= 0) {
+          t.cancel();
+          setState(() { _isInitialLoading = false; });
+          _fetchUserTickets();
+          if (mounted) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => GiveawayResultsScreen(
+                  giveawayId: 1,
+                  mockResults: [
+                    {
+                      'place_number': 1,
+                      'prize_name': 'Главный приз',
+                      'prize_value': '20 000 ₽ Золотое яблоко',
+                      'winner_username': 'gold_winner',
+                      'winner_first_name': 'Виктория',
+                      'is_manual_winner': true,
+                    },
+                    {
+                      'place_number': 2,
+                      'prize_name': 'Бьюти услуга на выбор',
+                      'prize_value': 'Можно заменить на Telegram Premium',
+                      'winner_username': 'beauty_2',
+                      'winner_first_name': 'Иван',
+                      'is_manual_winner': false,
+                    },
+                    {
+                      'place_number': 3,
+                      'prize_name': 'Бьюти услуга на выбор',
+                      'prize_value': 'Можно заменить на Telegram Premium',
+                      'winner_username': 'beauty_3',
+                      'winner_first_name': 'Марина',
+                      'is_manual_winner': false,
+                    },
+                    {
+                      'place_number': 4,
+                      'prize_name': 'Бьюти услуга на выбор',
+                      'prize_value': 'Можно заменить на Telegram Premium',
+                      'winner_username': 'beauty_4',
+                      'winner_first_name': 'Сергей',
+                      'is_manual_winner': false,
+                    },
+                    {
+                      'place_number': 5,
+                      'prize_name': 'Бьюти услуга на выбор',
+                      'prize_value': 'Можно заменить на Telegram Premium',
+                      'winner_username': 'beauty_5',
+                      'winner_first_name': 'Алёна',
+                      'is_manual_winner': false,
+                    },
+                    {
+                      'place_number': 6,
+                      'prize_name': 'Футболка',
+                      'prize_value': 'Футболка GTM',
+                      'winner_username': 'tee_6',
+                      'winner_first_name': 'Дима',
+                      'is_manual_winner': false,
+                    },
+                  ],
+                ),
+              ),
+            );
+          }
+        }
+      });
+    } else {
+      // В обычном режиме не показываем имитацию задержки и автопереход
+      setState(() { _isInitialLoading = false; });
+      _fetchUserTickets();
+    }
     TelegramWebAppService.disableVerticalSwipe();
   }
 
@@ -89,14 +167,22 @@ class _GiveawayScreenState extends State<GiveawayScreen> {
 
   Future<void> _fetchUserTickets() async {
     try {
-      final userId = TelegramWebAppService.getUserId();
+      // Всегда обновляем Y (total_all_tickets) при входе на экран, независимо от userId
+      await _refreshTotalAllTicketsQuick();
+
+      // X: грузим только если пришёл userId из плагина; для отладки можно подставить фиксированный id
+      String? userId = TelegramWebAppService.getPluginUserId();
+      if (userId == null && kUseDebugTelegramIdForX) {
+        userId = kDebugTelegramUserId;
+        print('[GIVEAWAY][DEBUG] using fallback debug telegram id = '+userId);
+      }
       // ignore: avoid_print
       print('[GIVEAWAY] resolved telegram userId = '+ (userId ?? 'null'));
       if (userId == null) return;
       final prefs = await SharedPreferences.getInstance();
       final lastTicketCheck = prefs.getInt('last_ticket_check_$userId') ?? 0;
       final now = DateTime.now().millisecondsSinceEpoch;
-      if (now - lastTicketCheck < 1 * 60 * 1000) {
+      if (now - lastTicketCheck < 25 * 1000) {
         final cachedTickets = prefs.getInt('cached_tickets_$userId');
         // username ранее кэшировался, но сейчас не используется
         final cachedTotal = prefs.getInt('cached_total_tickets');
@@ -108,35 +194,36 @@ class _GiveawayScreenState extends State<GiveawayScreen> {
           return;
         }
       }
-      // Берём аггрегированные пользовательские данные из Rating API
-      final stats = await ApiService.getGiveawayUserStats(int.tryParse(userId) ?? 0);
-      if (stats != null) {
-        final tickets = stats['total_tickets'] ?? 0;
-        final subsTickets = stats['subscription_tickets'] ?? 0;
-        final referralTickets = stats['referral_tickets'] ?? 0;
-        setState(() {
-          _tickets = tickets is int ? tickets : int.tryParse(tickets.toString()) ?? 0;
-          final int subs = subsTickets is int ? subsTickets : int.tryParse(subsTickets.toString()) ?? 0;
-          folderCounter = subs > 0 ? '1/1' : '0/1';
-          folderCounterColor = subs > 0 ? Colors.green : Colors.white.withOpacity(0.7);
-          final int ref = referralTickets is int ? referralTickets : int.tryParse(referralTickets.toString()) ?? 0;
-          final int cappedRef = ref > 10 ? 10 : ref;
-          friendsCounter = '$cappedRef/10';
-          friendsCounterColor = cappedRef > 0 ? Colors.green : Colors.white.withOpacity(0.7);
-          _giveawayTickets = (subs > 0 ? 1 : 0) + cappedRef;
-        });
-        await prefs.setInt('cached_tickets_$userId', _tickets);
-        await prefs.setInt('last_ticket_check_$userId', now);
+      // 1) Быстрый источник: Supabase напрямую
+      final intTelegramId = int.tryParse(userId) ?? 0;
+      try {
+        final statsFast = await GiveawaySupabaseService.instance.getUserStatsQuick(intTelegramId);
+        if (statsFast.isNotEmpty) {
+          final tickets = statsFast['total_tickets'] ?? 0;
+          final subsTickets = statsFast['subscription_tickets'] ?? 0;
+          final referralTickets = statsFast['referral_tickets'] ?? 0;
+          setState(() {
+            _tickets = tickets is int ? tickets : int.tryParse('$tickets') ?? 0;
+            final int subs = subsTickets is int ? subsTickets : int.tryParse('$subsTickets') ?? 0;
+            folderCounter = subs > 0 ? '1/1' : '0/1';
+            folderCounterColor = subs > 0 ? Colors.green : Colors.white.withOpacity(0.7);
+            final int ref = referralTickets is int ? referralTickets : int.tryParse('$referralTickets') ?? 0;
+            final int cappedRef = ref > 10 ? 10 : ref;
+            friendsCounter = '$cappedRef/10';
+            friendsCounterColor = cappedRef > 0 ? Colors.green : Colors.white.withOpacity(0.7);
+            _giveawayTickets = (subs > 0 ? 1 : 0) + cappedRef;
+          });
+          await prefs.setInt('cached_tickets_$userId', _tickets);
+          await prefs.setInt('last_ticket_check_$userId', now);
+          // Сохраняем флаг о билете за папку
+          await prefs.setBool('folder_awarded_$userId', (statsFast['subscription_tickets'] ?? 0) > 0);
+        }
+      } catch (e) {
+        print('❌ [DEBUG] Supabase fast stats error: $e');
       }
-      // Получаем total_all_tickets через Rating API
-      int? totalAll = await ApiService.getTotalAllTicketsFromApi();
-      if (totalAll != null) {
-        final safeTotal = totalAll;
-        setState(() { _totalTickets = safeTotal; });
-        await prefs.setInt('cached_total_tickets', safeTotal);
-        // ignore: avoid_print
-        print('[GIVEAWAY] total_all_tickets (Y) = $_totalTickets');
-      }
+
+      // 2) Y: сначала view (если есть), fallback на сумму
+      await _refreshTotalAllTicketsQuick();
     } catch (e) {
       print('❌ [DEBUG] Error fetching tickets: $e');
     }
@@ -148,13 +235,27 @@ class _GiveawayScreenState extends State<GiveawayScreen> {
         _isCheckingSubscriptions = true;
       });
 
-      final userId = TelegramWebAppService.getUserId();
+      // Для CHECK используем плагин id; если его нет и включён debug-флаг — подставляем тестовый id
+      String? userId = TelegramWebAppService.getPluginUserId();
+      if (userId == null && kUseDebugTelegramIdForX) {
+        userId = kDebugTelegramUserId;
+        print('[GIVEAWAY][DEBUG] CHECK using fallback debug telegram id = '+userId);
+      }
       if (userId == null) {
         print('❌ [DEBUG] User ID is null - cannot check subscriptions');
         return;
       }
 
-      print('🔍 [DEBUG] Checking subscriptions for user ID: $userId via API');
+      final prefs = await SharedPreferences.getInstance();
+      final awarded = prefs.getBool('folder_awarded_$userId') ?? false;
+      if (awarded) {
+        // Уже начисляли билет за папку — не дергаем Telegram, просто подтверждаем и обновляем Supabase
+        TelegramWebAppService.showAlert('✅ Билет за папку уже начислен');
+        await _fetchUserTickets();
+        return;
+      }
+
+      print('🔍 [DEBUG] Checking subscriptions for user ID: $userId via API (full check)');
 
       final response = await ApiService.checkSubscriptions(int.tryParse(userId) ?? 0);
       {
@@ -262,7 +363,12 @@ class _GiveawayScreenState extends State<GiveawayScreen> {
 
   Future<void> _openContactsForInvite() async {
     try {
-      final userId = TelegramWebAppService.getUserId();
+      // Используем userId из плагина; для отладки подставляем фиксированный id при его отсутствии
+      String? userId = TelegramWebAppService.getPluginUserId();
+      if (userId == null && kUseDebugTelegramIdForX) {
+        userId = kDebugTelegramUserId;
+        print('[GIVEAWAY][DEBUG] INVITE using fallback debug telegram id = '+userId);
+      }
       if (userId == null) {
         TelegramWebAppService.showAlert('Ошибка: не удалось определить пользователя');
         return;
@@ -676,6 +782,33 @@ $shareLink
     );
   }
 
+  Future<void> _debugShowTotalTickets() async {
+    try {
+      int? fromView = await GiveawaySupabaseService.instance.tryReadTotalAllTicketsView();
+      int total = fromView ?? await GiveawaySupabaseService.instance.getTotalAllTicketsQuick();
+      print('[GIVEAWAY][DEBUG] total_all_tickets = $total');
+      if (!mounted) return;
+      setState(() { _totalTickets = total; });
+      TelegramWebAppService.showAlert('Всего билетов (Y): $total');
+    } catch (e) {
+      print('❌ [GIVEAWAY][DEBUG] error reading total_all_tickets: $e');
+      TelegramWebAppService.showAlert('Ошибка чтения total_all_tickets');
+    }
+  }
+
+  Future<void> _refreshTotalAllTicketsQuick() async {
+    try {
+      int? fromView = await GiveawaySupabaseService.instance.tryReadTotalAllTicketsView();
+      int total = fromView ?? await GiveawaySupabaseService.instance.getTotalAllTicketsQuick();
+      if (!mounted) return;
+      setState(() { _totalTickets = total; });
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('cached_total_tickets', total);
+    } catch (e) {
+      print('❌ [GIVEAWAY] refresh total_all_tickets error: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isGoToAppButtonEnabled = _giveawayTickets > 0 || _task1ButtonPressed || _task2ButtonPressed;
@@ -722,6 +855,35 @@ $shareLink
               ],
             ),
           ),
+          if (kShowGiveawayDebugButton)
+            SafeArea(
+              child: Align(
+                alignment: Alignment.topRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 8, right: 8),
+                  child: SizedBox(
+                    height: 32,
+                    child: OutlinedButton(
+                      onPressed: _debugShowTotalTickets,
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFFF6EC7)),
+                        foregroundColor: const Color(0xFFFF6EC7),
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                      ),
+                      child: const Text(
+                        'DEBUG',
+                        style: TextStyle(
+                          fontFamily: 'NauryzKeds',
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -895,20 +1057,52 @@ $shareLink
               child: Container(
                 color: Colors.black.withOpacity(0.9),
                 child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const SizedBox(
-                        width: 36,
-                        height: 36,
-                        child: CircularProgressIndicator(color: Color(0xFFFF6EC7), strokeWidth: 3),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Загрузка результатов... ${_initialDelayLeft}s',
-                        style: const TextStyle(color: Colors.white70, fontFamily: 'OpenSans', fontSize: 14),
-                      ),
-                    ],
+                  child: SizedBox(
+                    width: 320,
+                    height: 320,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Тонкий штрих‑пунктирный круг
+                        CustomPaint(
+                          size: const Size(320, 320),
+                          painter: DottedCirclePainter(
+                            color: Colors.white.withOpacity(0.6),
+                            circleSize: 180,
+                            animationValue: (_initialDelayLeft % 2) / 2,
+                          ),
+                        ),
+                        // Софт засвет в момент загрузки
+                        Container(
+                          width: 224,
+                          height: 224,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFFFF6EC7).withOpacity(0.25),
+                            boxShadow: [
+                              BoxShadow(color: const Color(0xFFFF6EC7).withOpacity(0.25), blurRadius: 36, spreadRadius: 8),
+                            ],
+                          ),
+                        ),
+                        // Центровой мемодзи
+                        Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: const BoxDecoration(color: Color(0xFFF3E0E6), shape: BoxShape.circle),
+                          child: const CircleAvatar(
+                            radius: 36,
+                            backgroundImage: AssetImage('assets/center_memoji.png'),
+                            backgroundColor: Color(0xFF33272D),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 24,
+                          child: Text(
+                            'Загрузка... ${_initialDelayLeft}s',
+                            style: const TextStyle(color: Colors.white70, fontFamily: 'OpenSans', fontSize: 14),
+                          ),
+                        )
+                      ],
+                    ),
                   ),
                 ),
               ),
