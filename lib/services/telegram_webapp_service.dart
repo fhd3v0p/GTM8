@@ -211,33 +211,7 @@ class TelegramWebAppService {
       print('tgWebAppData parse error: $e');
     }
 
-    // 3) Доп. fallback: парсинг initData строки из плагина (как query)
-    try {
-      final t = TelegramWebApp.instance;
-      final initRaw = t.initData; // сырой query-string
-      if (initRaw != null && initRaw.isNotEmpty) {
-        final q = _parseQueryString(initRaw);
-        final userStr = q['user'];
-        if (userStr != null && userStr.isNotEmpty) {
-          final decoded = jsonDecode(userStr);
-          if (decoded is Map) {
-            final map = {
-              'id': decoded['id'],
-              'first_name': decoded['first_name'],
-              'last_name': decoded['last_name'],
-              'username': decoded['username'],
-              'language_code': decoded['language_code'],
-            };
-            // ignore: avoid_print
-            print('  ✅ User from plugin.initData: $map');
-            return map;
-          }
-        }
-      }
-    } catch (e) {
-      // ignore: avoid_print
-      print('plugin initData parse error: $e');
-    }
+    // 3) Доп. fallback через initData (удалён: в telegram_web_app 0.3.3 initData — это объект TelegramInitData, а не строка)
 
     // 4) JS Telegram.WebApp.initDataUnsafe
     try {
