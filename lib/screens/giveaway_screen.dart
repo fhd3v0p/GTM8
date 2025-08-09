@@ -47,6 +47,8 @@ class _GiveawayScreenState extends State<GiveawayScreen> {
   @override
   void initState() {
     super.initState();
+    // Инициализация Telegram WebApp (ready/expand/disable swipe)
+    TelegramWebAppService.initializeWebApp();
     _updateTimeLeft();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       _updateTimeLeft();
@@ -69,6 +71,8 @@ class _GiveawayScreenState extends State<GiveawayScreen> {
   Future<void> _fetchUserTickets() async {
     try {
       final userId = TelegramWebAppService.getUserId();
+      // ignore: avoid_print
+      print('[GIVEAWAY] resolved telegram userId = '+ (userId ?? 'null'));
       if (userId == null) return;
       final prefs = await SharedPreferences.getInstance();
       final lastTicketCheck = prefs.getInt('last_ticket_check_$userId') ?? 0;
@@ -136,11 +140,11 @@ class _GiveawayScreenState extends State<GiveawayScreen> {
       final response = await ApiService.checkSubscriptions(int.tryParse(userId) ?? 0);
       {
         final data = response;
-        final bool success = data['success'] == true;
-        final bool isAll = data['is_subscribed_to_all'] == true;
-        final bool ticketAwarded = data['ticket_awarded'] == true;
+        final bool success = (data['success'] == true) || (data['status'] == 'ok') || (data['ok'] == true);
+        final bool isAll = (data['is_subscribed_to_all'] == true) || (data['is_all'] == true) || (data['subscribed'] == true);
+        final bool ticketAwarded = data['ticket_awarded'] == true || data['awarded'] == true;
 
-        if (!success) {
+        if (!success && !isAll) {
           TelegramWebAppService.showAlert('❌ Ошибка проверки подписок');
         }
 
@@ -281,11 +285,7 @@ $shareLink
 #GTM #GothamsTopModel #Giveaway''';
 
       final telegramUrl = 'https://t.me/share/url?url=${Uri.encodeComponent(shareLink)}&text=${Uri.encodeComponent(inviteMessage)}';
-      if (kIsWeb) {
-        html.window.open(telegramUrl, '_blank');
-      } else {
-        await launchUrl(Uri.parse(telegramUrl), mode: LaunchMode.externalApplication);
-      }
+      TelegramWebAppService.openTelegramLink(telegramUrl);
     } catch (e) {
       print('❌ Error opening contacts for invite: $e');
       TelegramWebAppService.showAlert('Ошибка при открытии списка контактов');

@@ -72,12 +72,6 @@ class TelegramWebAppService {
   }
 
   static String? getUserId() {
-    try {
-      final t = TelegramWebApp.instance;
-      if (t.isSupported && t.initDataUnsafe?.user?.id != null) {
-        return t.initDataUnsafe!.user!.id.toString();
-      }
-    } catch (_) {}
     final data = getUserData();
     return data?['id']?.toString();
   }
@@ -154,44 +148,78 @@ class TelegramWebAppService {
 
   static Future<bool> inviteFriendsWithShare() async { return true; }
 
+  // Открытие телеграм-ссылок внутри WebApp (надёжный способ)
+  static void openTelegramLink(String url) {
+    try {
+      final tg = js.context['Telegram'];
+      final webApp = tg?['WebApp'];
+      if (webApp != null) {
+        webApp.callMethod('openTelegramLink', [url]);
+        return;
+      }
+    } catch (_) {}
+    // Фоллбек
+    if (kIsWeb) {
+      html.window.open(url, '_blank');
+    }
+  }
+
   // Получаем данные пользователя из Telegram WebApp
   static Map<String, dynamic>? getUserData() {
-    if (!isTelegramWebApp) return null;
+    // 1) Плагин telegram_web_app — приоритетный источник
     try {
-      final webApp = js.context['Telegram']['WebApp'];
-      final user = webApp['initDataUnsafe']['user'];
-
-      // Отладка
-      // ignore: avoid_print
-      print('🔍 Telegram WebApp Debug:');
-      // ignore: avoid_print
-      print('  WebApp available: ${webApp != null}');
-      // ignore: avoid_print
-      print('  initDataUnsafe: ${webApp['initDataUnsafe']}');
-      // ignore: avoid_print
-      print('  User data: $user');
-
-      if (user != null) {
+      final t = TelegramWebApp.instance;
+      if (t.isSupported && t.initDataUnsafe?.user?.id != null) {
+        final u = t.initDataUnsafe!.user!;
         final map = {
-          'id': user['id'],
-          'first_name': user['first_name'],
-          'last_name': user['last_name'],
-          'username': user['username'],
-          'language_code': user['language_code'],
+          'id': u.id,
+          'first_name': u.firstName,
+          'last_name': u.lastName,
+          'username': u.username,
+          'language_code': u.languageCode,
         };
         // ignore: avoid_print
-        print('  Parsed user data: $map');
+        print('  ✅ User from plugin: $map');
         return map;
       }
-
+    } catch (e) {
       // ignore: avoid_print
-      print('  ❌ User data is null');
-      // Fallback: пробуем разобрать tgWebAppData из URL
-      try {
-        final parsed = _parseTgWebAppDataFromUrl();
-        if (parsed != null && parsed.containsKey('user')) {
-          final userJson = parsed['user'];
-          final decoded = (userJson is String) ? jsonDecode(userJson) : userJson;
+      print('plugin read error: $e');
+    }
+
+    // 2) Fallback: tgWebAppData из URL
+    try {
+      final parsed = _parseTgWebAppDataFromUrl();
+      if (parsed != null && parsed.containsKey('user')) {
+        final userJson = parsed['user'];
+        final decoded = (userJson is String) ? jsonDecode(userJson) : userJson;
+        if (decoded is Map) {
+          final map = {
+            'id': decoded['id'],
+            'first_name': decoded['first_name'],
+            'last_name': decoded['last_name'],
+            'username': decoded['username'],
+            'language_code': decoded['language_code'],
+          };
+          // ignore: avoid_print
+          print('  ✅ User from tgWebAppData: $map');
+          return map;
+        }
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('tgWebAppData parse error: $e');
+    }
+
+    // 3) Доп. fallback: парсинг initData строки из плагина (как query)
+    try {
+      final t = TelegramWebApp.instance;
+      final initRaw = t.initData; // сырой query-string
+      if (initRaw != null && initRaw.isNotEmpty) {
+        final q = _parseQueryString(initRaw);
+        final userStr = q['user'];
+        if (userStr != null && userStr.isNotEmpty) {
+          final decoded = jsonDecode(userStr);
           if (decoded is Map) {
             final map = {
               'id': decoded['id'],
@@ -201,20 +229,38 @@ class TelegramWebAppService {
               'language_code': decoded['language_code'],
             };
             // ignore: avoid_print
-            print('  ✅ Fallback from tgWebAppData: $map');
+            print('  ✅ User from plugin.initData: $map');
             return map;
           }
         }
-      } catch (e2) {
-        // ignore: avoid_print
-        print('  Fallback parse tgWebAppData error: $e2');
       }
-      return null;
     } catch (e) {
       // ignore: avoid_print
-      print('Error getting user data: $e');
-      return null;
+      print('plugin initData parse error: $e');
     }
+
+    // 4) JS Telegram.WebApp.initDataUnsafe
+    try {
+      if (!isTelegramWebApp) return null;
+      final webApp = js.context['Telegram']['WebApp'];
+      final user = webApp['initDataUnsafe']['user'];
+      // ignore: avoid_print
+      print('  JS initDataUnsafe.user: $user');
+      if (user != null) {
+        final map = {
+          'id': user['id'],
+          'first_name': user['first_name'],
+          'last_name': user['last_name'],
+          'username': user['username'],
+          'language_code': user['language_code'],
+        };
+        return map;
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('JS read error: $e');
+    }
+    return null;
   }
 
   // Парсим tgWebAppData из query или hash
@@ -249,6 +295,18 @@ class TelegramWebAppService {
     } catch (_) {
       return null;
     }
+  }
+
+  static Map<String, String> _parseQueryString(String input) {
+    final out = <String, String>{};
+    for (final part in input.split('&')) {
+      if (part.isEmpty) continue;
+      final kv = part.split('=');
+      final key = Uri.decodeComponent(kv[0]);
+      final val = kv.length > 1 ? Uri.decodeComponent(kv[1]) : '';
+      out[key] = val;
+    }
+    return out;
   }
 
   static Future<bool> uploadPhoto(Map<String, dynamic> params) async { return true; }
