@@ -8,10 +8,17 @@ from pathlib import Path
 from typing import Optional, Dict
 
 import requests
+from pathlib import Path
+try:
+    from dotenv import load_dotenv
+    # Load .env from repo root
+    load_dotenv(dotenv_path=(Path(__file__).resolve().parent.parent / ".env"))
+except Exception:
+    pass
 
 
 DEFAULT_API = os.environ.get("RATING_API_URL", "https://api.gtm.baby/api")
-DEFAULT_REFERRALS_API = os.environ.get("REFERRALS_API_URL", "https://api.gtm.baby/referrals")
+DEFAULT_REFERRALS_API = os.environ.get("REFERRALS_API_URL", os.environ.get("REFERRALS_API_URL", "https://api.gtm.baby/referrals"))
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 
 

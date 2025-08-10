@@ -5,6 +5,12 @@ import json
 import time
 import argparse
 import requests
+from pathlib import Path
+try:
+    from dotenv import load_dotenv
+    load_dotenv(dotenv_path=(Path(__file__).resolve().parent.parent / ".env"))
+except Exception:
+    pass
 from typing import List, Tuple, Dict, Any, Set
 
 DEFAULT_API_BASE = os.environ.get("API_BASE_URL", "https://api.gtm.baby")
