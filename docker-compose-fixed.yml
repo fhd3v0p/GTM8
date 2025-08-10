@@ -80,6 +80,56 @@ services:
     networks:
       - gtm_network
 
+  # ============================================================================
+  # REDIS (Queue backend for referrals/worker)
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: gtm_redis
+    restart: unless-stopped
+    expose:
+      - "6379"
+    networks:
+      - gtm_network
+
+  # ============================================================================
+  # REFERRALS MICROSERVICE (FastAPI) + WORKER (RQ)
+  # ============================================================================
+  referrals_api:
+    build:
+      context: ./referrals
+      dockerfile: Dockerfile
+    container_name: gtm_referrals_api
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - RQ_QUEUE_NAME=gtm
+    expose:
+      - "8000"
+    depends_on:
+      - redis
+    networks:
+      - gtm_network
+
+  referrals_worker:
+    build:
+      context: ./referrals
+      dockerfile: Dockerfile
+    container_name: gtm_referrals_worker
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - RQ_QUEUE_NAME=gtm
+    command: ["python", "worker_entry.py"]
+    depends_on:
+      - redis
+    networks:
+      - gtm_network
+
 # ============================================================================
 # NETWORKS
 # ============================================================================

@@ -5,6 +5,8 @@ API для обработки рейтингов артистов из Flutter �
 """
 
 from flask import Flask, request, jsonify
+import os
+import requests
 from flask_cors import CORS
 import requests
 import json
@@ -274,73 +276,35 @@ def get_or_create_referral_code():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/referral-join', methods=['POST'])
+def referral_join():
+    """Proxy: перенаправляет начисление реферального билета в referrals service (синхронный путь)."""
+    try:
+        data = request.get_json() or {}
+        referral_code = data.get('referral_code')
+        referred_telegram_id = data.get('referred_telegram_id')
+        if not referral_code or not referred_telegram_id:
+            return jsonify({'success': False, 'error': 'referral_code and referred_telegram_id required'}), 400
+        referrals_base = os.environ.get('REFERRALS_API_URL', 'http://referrals_api:8000')
+        r = requests.post(f"{referrals_base}/referral-join", json={
+            'referral_code': referral_code,
+            'referred_telegram_id': int(referred_telegram_id),
+        }, timeout=25)
+        return jsonify(r.json()), r.status_code
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/check-subscriptions', methods=['POST'])
 def check_subscriptions():
-    """Проверить подписку пользователя на все каналы и начислить билет 1 раз"""
+    """Proxy: перенаправляет запрос в referrals service (синхронный путь)."""
     try:
         data = request.get_json() or {}
         telegram_id = data.get('telegram_id')
         if not telegram_id:
             return jsonify({'success': False, 'error': 'telegram_id required'}), 400
-
-        if not TELEGRAM_BOT_TOKEN:
-            return jsonify({'success': False, 'error': 'BOT TOKEN not configured'}), 500
-
-        # Проверяем подписку на все каналы
-        is_all = True
-        not_subscribed = []
-        subscribed_rows = []
-        for channel in SUBSCRIPTION_CHANNELS:
-            chat_id = channel['channel_id']
-            url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getChatMember"
-            resp = requests.get(url, params={'chat_id': chat_id, 'user_id': telegram_id}, timeout=15)
-            if resp.status_code != 200:
-                is_all = False
-                not_subscribed.append(chat_id)
-                continue
-            member = resp.json().get('result', {})
-            status = member.get('status')
-            if status in ('member', 'administrator', 'creator'):
-                subscribed_rows.append({
-                    'telegram_id': int(telegram_id),
-                    'channel_id': channel['channel_id'],
-                    'channel_name': channel['channel_name'],
-                    'channel_username': channel['channel_username']
-                })
-            else:
-                is_all = False
-                not_subscribed.append(chat_id)
-
-        # Зафиксировать подписки в таблицу subscriptions (idempotent upsert)
-        if subscribed_rows:
-            try:
-                subs_headers = { **supabase_headers, 'Prefer': 'resolution=merge-duplicates' }
-                subs_resp = requests.post(
-                    f"{SUPABASE_URL}/rest/v1/subscriptions",
-                    headers=subs_headers,
-                    params={'on_conflict': 'telegram_id,channel_id'},
-                    json=subscribed_rows,
-                    timeout=20
-                )
-                # не прерываем поток даже при ошибке
-            except Exception:
-                pass
-
-        # Вызываем RPC для начисления билета
-        rpc_url = f"{SUPABASE_URL}/rest/v1/rpc/check_subscription_and_award_ticket"
-        rpc_body = {'p_telegram_id': int(telegram_id), 'p_is_subscribed': bool(is_all)}
-        rpc_resp = requests.post(rpc_url, headers=supabase_headers, json=rpc_body, timeout=20)
-
-        payload = {'success': False, 'is_subscribed_to_all': is_all, 'not_subscribed': not_subscribed}
-
-        if rpc_resp.status_code == 200:
-            body = rpc_resp.json()
-            payload.update(body)
-            payload['success'] = True
-            return jsonify(payload)
-        else:
-            return jsonify({**payload, 'error': f'RPC error {rpc_resp.status_code}', 'rpc_body': rpc_resp.text}), 200
-
+        referrals_base = os.environ.get('REFERRALS_API_URL', 'http://referrals_api:8000')
+        r = requests.post(f"{referrals_base}/check-subscriptions", json={'telegram_id': int(telegram_id)}, timeout=25)
+        return jsonify(r.json()), r.status_code
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
