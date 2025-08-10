@@ -25,6 +25,7 @@ from aiogram.exceptions import TelegramNetworkError
 from aiogram.client.session.aiohttp import AiohttpSession
 
 from supabase_client import supabase_client
+import aiohttp
 from supabase_config import validate_supabase_config
 
 load_dotenv()
@@ -42,6 +43,7 @@ WEBAPP_URL = os.getenv('WEBAPP_URL', 'https://gtm.baby')
 WEBAPP_VERSION = os.getenv('WEBAPP_VERSION', '')
 ADMIN_ID = int(os.getenv('ADMIN_ID', '6358105675'))
 LOG_CHAT_ID = int(os.getenv('TELEGRAM_LOG_CHAT_ID', '0'))
+REFERRALS_API_URL = os.getenv('REFERRALS_API_URL', 'http://referrals_api:8000')
 
 # 9 каналов
 SUBSCRIPTION_CHANNELS: List[dict] = [
@@ -124,11 +126,15 @@ async def cmd_start(message: Message):
             await supabase_client.update_user(user.id, update_payload)
         except Exception as e:
             logger.warning(f"Не удалось записать invited_by_*: {e}")
-        # Начисляем билет пригласителю, если не самореферал и не дубль
+        # Поручаем начисление билета воркеру (асинхронно)
         try:
-            await supabase_client.add_referral_ticket(referral_code, referred_id=user.id)
+            async with aiohttp.ClientSession() as s:
+                await s.post(f"{REFERRALS_API_URL}/enqueue/referral-join", json={
+                    'referral_code': referral_code,
+                    'referred_telegram_id': int(user.id)
+                }, timeout=10)
         except Exception as e:
-            logger.error(f"Ошибка начисления реф-билета: {e}")
+            logger.error(f"Ошибка постановки referral-join в очередь: {e}")
     welcome_message = (
         f"☠️ Привет, {user.first_name}! ☠️\n\n"
         "👄 Добро пожаловать во Gotham's Top Model — платформу для поиска и бронирования лучших артистов в твоем городе!\n\n"
@@ -208,54 +214,13 @@ async def cmd_check(message: Message):
     except Exception:
         pass
 
-    subscribed = []
-    not_subscribed = []
-    # Параллельная проверка каналов с ограничением (антифлуд)
-    sem = asyncio.Semaphore(5)
-
-    async def check_one(ch):
-        async with sem:
-            try:
-                member = await bot.get_chat_member(chat_id=ch['channel_id'], user_id=user.id)
-                if member.status in ('member', 'administrator', 'creator'):
-                    subscribed.append(ch)
-                else:
-                    not_subscribed.append(ch)
-            except Exception as e:
-                logger.error(f"Ошибка проверки канала {ch['channel_name']}: {e}")
-                not_subscribed.append(ch)
-
-    # Быстрый ACK отправлен выше; параллельную проверку ведём и итог формируем ниже
-    await asyncio.gather(*[check_one(ch) for ch in SUBSCRIPTION_CHANNELS])
-
-    is_all = len(subscribed) == 9
-    result = await supabase_client.check_subscription_and_award_ticket(user.id, is_all)
-
-    lines = ["📊 Результаты проверки подписок:\n"]
-    if subscribed:
-        lines.append("✅ Подписан на:")
-        lines += [f"• {c['channel_name']}" for c in subscribed]
-        lines.append("")
-    if not_subscribed:
-        lines.append("❌ Не подписан на:")
-        lines += [f"• {c['channel_name']}" for c in not_subscribed]
-        lines.append("")
-
-    if result.get('ticket_awarded', False):
-        lines.append("🎫 Билет начислен за подписку на папку!")
-    else:
-        if not is_all:
-            lines.append(f"⚠️ Для получения билета нужно подписаться на все {len(SUBSCRIPTION_CHANNELS)} каналов")
-            lines.append(f"📁 Подпишитесь на папку GTM: {TELEGRAM_FOLDER_LINK}")
-            lines.append("🔒 Не отписывайтесь до конца розыгрыша!")
-        else:
-            lines.append("✅ Билет за подписки уже начислен")
-
-    total_user = result.get('total_tickets', 0)
-    total_all = await supabase_client.get_total_tickets()
-    lines.append(f"\n🎫 Ваши билеты: {total_user}/{total_all}")
-
-    await message.answer("\n".join(lines))
+    # Быстрый ответ и постановка тяжёлой проверки в очередь
+    await message.answer("⏱️ Запустил проверку подписок в фоне. Я напишу, как только закончу.")
+    try:
+        async with aiohttp.ClientSession() as s:
+            await s.post(f"{REFERRALS_API_URL}/enqueue/check-subscriptions", json={'telegram_id': int(user.id)}, timeout=10)
+    except Exception as e:
+        logger.error(f"Ошибка постановки check-subscriptions в очередь: {e}")
 
 
 async def cmd_tickets(message: Message):
