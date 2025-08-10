@@ -1,4 +1,98 @@
 <!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <base href="/" />
+
+  <title>GTM WebApp</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+
+  <!-- Жёсткий no-cache для Telegram WebView -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+
+  <!-- Версионированный Service Worker (форсирует подхват новой версии) -->
+  <meta name="flutter-service-worker" content="flutter_service_worker.js?v=FORCE_20250809_2" />
+
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
+
+  <style>
+    /* Базовая разметка на весь экран */
+    html, body, #flutter_container {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      height: 100vh;
+      height: 100dvh;
+      background: #000;
+    }
+    /* Блокируем осевой скролл и эластичное перетягивание */
+    body { background: #000; overflow-x: hidden; }
+    html, body { overscroll-behavior-y: contain; height: -webkit-fill-available; min-height: 100%; }
+    html { overflow: hidden; }
+    body::-webkit-scrollbar { display: none; }
+    #flutter_container { position: fixed; inset: 0; }
+  </style>
+</head>
+<body>
+  <div id="flutter_container"></div>
+
+  <script>
+    (function () {
+      // 1) Одноразовый сброс SW и кэшей у клиента для этой версии
+      const FLAG = 'gtm_sw_cleared_v2_20250809_2';
+      if (!localStorage.getItem(FLAG) && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations()
+          .then(regs => Promise.all(regs.map(r => r.unregister())))
+          .then(() => caches.keys())
+          .then(keys => Promise.all(keys.map(k => caches.delete(k))))
+          .then(() => localStorage.setItem(FLAG, '1'))
+          .catch(() => {});
+      }
+
+      // 2) Telegram: разворачиваем и выключаем вертикальные свайпы, если поддерживается
+      window.addEventListener('load', function () {
+        try {
+          if (window.Telegram && window.Telegram.WebApp) {
+            const wa = window.Telegram.WebApp;
+            wa.ready();
+            if (typeof wa.expand === 'function') wa.expand();
+            // Новый API (v7.7+): запрет вертикального свайпа
+            if (typeof wa.setSwipeBehavior === 'function') {
+              wa.setSwipeBehavior({ allowVerticalSwipe: false });
+            } else if (typeof wa.setupSwipeBehavior === 'function') {
+              wa.setupSwipeBehavior({ allow_vertical_swipe: false });
+            } else if (typeof wa.disableVerticalSwipes === 'function') {
+              // Старый API
+              wa.disableVerticalSwipes();
+            }
+          }
+        } catch (_) {}
+      });
+
+      // 3) Слежение за высотой видимой области (особенно iOS)
+      function fixHeight() {
+        var el = document.getElementById('flutter_container');
+        if (el) { el.style.height = window.innerHeight + 'px'; }
+      }
+      window.addEventListener('resize', fixHeight);
+      fixHeight();
+    })();
+  </script>
+
+  <!-- Версионированные загрузчики Flutter (пробивают кэш Telegram/WebView) -->
+  <script src="flutter.js?v=FORCE_20250809_2" defer></script>
+  <script src="flutter_bootstrap.js?v=FORCE_20250809_2" defer></script>
+</body>
+</html>
+
+<!DOCTYPE html>
 <html>
 <head>
   <!--
@@ -19,10 +113,6 @@
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="A new Flutter project.">
-  <!-- Disable caching aggressively to fight Telegram WebView cache -->
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -35,91 +125,8 @@
 
   <title>gtm_app</title>
   <link rel="manifest" href="manifest.json">
-  <!-- Telegram WebApp SDK (required by telegram_web_app plugin) -->
-  <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
-  <style>
-    html, body, #flt-glass-pane, #flutter_container {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      height: 100vh;       /* для мобильных */
-      height: 100dvh;      /* для iOS Safari/новых браузеров */
-      overflow: hidden; /* запретить скролл */
-      background: #000;
-    }
-    html, body { overscroll-behavior-y: contain; touch-action: pan-x pan-y; }
-    #flutter_container { position: fixed; inset: 0; }
-    #splash-root {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      align-items: center;     /* по центру экрана вертикально */
-      justify-content: center; /* по центру экрана горизонтально */
-      background: #000;
-      z-index: 9999;
-      user-select: none;
-      padding: 0;
-    }
-    .splash {
-      font-family: 'NauryzKeds', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, sans-serif;
-      color: #fff;
-      text-align: left;   /* линии слева между собой */
-      line-height: 0.9;
-    }
-    .row {
-      display: block;
-      font-weight: 800;
-      letter-spacing: 2px;
-    }
-    .row-1 { font-size: clamp(42px, 14vw, 120px); opacity: 0; transform: translateY(-20px); animation: fadeDown 800ms ease forwards 100ms; }
-    .row-2 { font-size: clamp(36px, 12vw, 100px); opacity: 0; transform: translateY(60px); animation: slideUp 750ms cubic-bezier(.2,.8,.2,1) forwards 700ms; }
-    .row-3 { font-size: clamp(36px, 12vw, 100px); opacity: 0; transform: translateY(20px); animation: fadeUp 700ms ease forwards 1250ms; }
-    
-    .word {
-      display: inline-block;
-    }
-    .light { color: #ffffff; }
-    .dim   { color: rgba(255,255,255,0.75); }
-    
-    @keyframes fadeDown { to { opacity: 1; transform: translateY(0); } }
-    @keyframes fadeUp   { to { opacity: 1; transform: translateY(0); } }
-    @keyframes slideUp  { to { opacity: 1; transform: translateY(0); } }
-  </style>
 </head>
 <body>
-  <div id="splash-root">
-    <div class="splash">
-      <div class="row row-1">
-        <span class="word"><span class="light">G</span><span class="dim">OTHAM'S</span></span>
-      </div>
-      <div class="row row-2">
-        <span class="word"><span class="light">T</span><span class="dim">OP</span></span>
-      </div>
-      <div class="row row-3">
-        <span class="word"><span class="light">M</span><span class="dim">ODEL</span></span>
-      </div>
-    </div>
-  </div>
-  <script>
-    // Скрываем сплэш, когда Flutter загрузится
-    window.addEventListener('load', function() {
-      const removeSplash = () => {
-        const el = document.getElementById('splash-root');
-        if (el) el.style.display = 'none';
-      };
-      // На всякий случай таймер авто-скрытия
-      setTimeout(removeSplash, 3500);
-      // Форсируем высоту контейнера на всю видимую область
-      const setFullHeight = () => {
-        const c = document.getElementById('flutter_container');
-        if (c) { c.style.height = window.innerHeight + 'px'; }
-      };
-      setFullHeight();
-      window.addEventListener('resize', setFullHeight);
-    });
-    // Останавливаем всплытие touchmove
-    document.addEventListener('touchmove', function(e) { e.stopPropagation(); }, { passive: false });
-  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

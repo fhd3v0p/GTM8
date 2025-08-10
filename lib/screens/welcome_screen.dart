@@ -2,7 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:slide_to_act/slide_to_act.dart';
 import 'giveaway_screen.dart';
-import '../main.dart'; // если main.dart в корне lib
+ 
 import '../services/telegram_webapp_service.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -75,11 +75,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     return Offset(radius * cos(angle), radius * sin(angle));
   }
 
-  void _onSlideChange(double value) {
-    setState(() {
-      _sliderProgress = value.clamp(0.0, 1.0);
-    });
-  }
+  // удален кастомный обработчик drag — используем чистый SlideAction
 
   @override
   Widget build(BuildContext context) {
@@ -88,8 +84,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       body: Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: SingleChildScrollView(
-            child: Column(
+          child: Column(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 const SizedBox(height: 5), // отступ сверху 5мм
@@ -202,46 +197,36 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   ),
                 ),
                 const SizedBox(height: 15), // отступ снизу до слайдера увеличен в 3 раза (было 5, стало 15)
-                Listener(
-                  onPointerMove: (event) {
-                    final box = context.findRenderObject() as RenderBox;
-                    final localPosition = box.globalToLocal(event.position);
-                    final width = box.size.width - 48;
-                    final progress = (localPosition.dx - 24) / width;
-                    _onSlideChange(progress);
-                  },
-                  child: SlideAction(
-                    text: 'Проведите для начала',
-                    textStyle: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
-                      fontSize: 20,
-                    ),
-                    outerColor: Colors.white70.withOpacity(0.35),
-                    innerColor: Colors.white,
-                    sliderButtonIcon: Icon(
-                      Icons.arrow_forward,
-                      color: Color(0xFFFF6EC7),
-                    ),
-                    elevation: 0,
-                    borderRadius: 50,
-                    onSubmit: () {
-                      print('DEBUG: Слайдер завершен, переход к GiveawayScreen');
-                      Future.microtask(() {
-                        try {
-                          // Используем fade-переход
-                          navigateWithFadeReplacement(context, const GiveawayScreen());
-                          print('DEBUG: Навигация к GiveawayScreen выполнена');
-                        } catch (e) {
-                          print('DEBUG: Ошибка при навигации к GiveawayScreen: $e');
-                        }
-                      });
-                      return null;
-                    },
+                SlideAction(
+                  text: 'Проведите для начала',
+                  textStyle: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 20,
                   ),
+                  outerColor: Colors.white70.withOpacity(0.35),
+                  innerColor: Colors.white,
+                  sliderButtonIcon: Icon(
+                    Icons.arrow_forward,
+                    color: Color(0xFFFF6EC7),
+                  ),
+                  elevation: 0,
+                  borderRadius: 50,
+                  sliderRotate: false,
+                  onSubmit: () {
+                    print('DEBUG: Слайдер завершен, переход к GiveawayScreen');
+                    Future.microtask(() {
+                      try {
+                        navigateWithFadeReplacement(context, const GiveawayScreen());
+                        print('DEBUG: Навигация к GiveawayScreen выполнена');
+                      } catch (e) {
+                        print('DEBUG: Ошибка при навигации к GiveawayScreen: $e');
+                      }
+                    });
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 5), // отступ снизу от края до нижней границы слайдера 5мм
               ],
-            ),
           ),
         ),
       ),
