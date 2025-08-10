@@ -16,6 +16,9 @@ build/
 .flutter-plugins-dependencies
 .packages
 
+# Exclude generated web bundle from VCS (managed via SCP)
+web/
+
 # iOS/macOS
 ios/Pods/
 macos/Pods/
