@@ -47,18 +47,18 @@ SUPABASE_URL = (os.getenv("SUPABASE_URL") or "").strip()
 SUPABASE_SERVICE_ROLE_KEY = (os.getenv("SUPABASE_SERVICE_ROLE_KEY") or "").strip()
 
 
-def fetch_all_user_ids(batch_size: int = 2000, start_from: int = 0, limit: Optional[int] = None) -> List[int]:
+def fetch_all_users(batch_size: int = 2000, start_from: int = 0, limit: Optional[int] = None) -> List[dict]:
     headers = {
         "apikey": SUPABASE_SERVICE_ROLE_KEY,
         "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
     }
-    out: List[int] = []
+    out: List[dict] = []
     offset = start_from
     remaining = limit if limit is not None else 10**12
     while remaining > 0:
         page = min(batch_size, remaining)
         params = {
-            "select": "telegram_id",
+            "select": "telegram_id,first_name,username",
             "order": "telegram_id.asc",
             "limit": str(page),
             "offset": str(offset),
@@ -69,14 +69,18 @@ def fetch_all_user_ids(batch_size: int = 2000, start_from: int = 0, limit: Optio
         rows = r.json() or []
         if not rows:
             break
-        ids = []
+        users_batch: List[dict] = []
         for row in rows:
             try:
                 tid = int(row.get("telegram_id"))
-                ids.append(tid)
             except Exception:
                 continue
-        out.extend(ids)
+            users_batch.append({
+                "telegram_id": tid,
+                "first_name": (row.get("first_name") or "").strip(),
+                "username": (row.get("username") or "").strip(),
+            })
+        out.extend(users_batch)
         got = len(rows)
         offset += got
         remaining -= got
@@ -166,13 +170,18 @@ def main() -> None:
     if photo_path and not photo_path.exists():
         raise SystemExit(f"Photo file not found: {photo_path}")
 
-    users = fetch_all_user_ids(start_from=args.start_from, limit=args.limit)
+    users = fetch_all_users(start_from=args.start_from, limit=args.limit)
     total = len(users)
     sent = failed = skipped = 0
 
     Path(args.report).parent.mkdir(parents=True, exist_ok=True)
     with open(args.report, "w", encoding="utf-8") as rep:
-        for idx, uid in enumerate(users, start=1):
+        for idx, user in enumerate(users, start=1):
+            uid = int(user["telegram_id"])  # chat id
+            # Per-user templating
+            first_name = user.get("first_name") or ""
+            username = user.get("username") or ""
+            text = (args.text or "").replace("{first_name}", first_name).replace("{username}", username)
             status = "dry"
             detail = ""
             if args.dry:
@@ -184,13 +193,13 @@ def main() -> None:
                         chat_id=uid,
                         photo_url=args.photo_url,
                         photo_file=photo_path,
-                        caption=args.text or None,
+                        caption=(text or None),
                         parse_mode=args.parse_mode,
                     )
                 else:
                     ok, detail = tg_send_message(
                         chat_id=uid,
-                        text=args.text,
+                        text=text,
                         parse_mode=args.parse_mode,
                         disable_preview=args.disable_preview,
                     )
@@ -204,6 +213,8 @@ def main() -> None:
             rep.write(json.dumps({
                 "idx": idx,
                 "user_id": uid,
+                "first_name": first_name,
+                "username": username,
                 "status": status,
                 "detail": detail,
             }, ensure_ascii=False) + "\n")
