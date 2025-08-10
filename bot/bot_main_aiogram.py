@@ -114,6 +114,16 @@ async def cmd_start(message: Message):
     if len(args) > 1:
         referral_code = args[1]
         used_ref_code = referral_code
+        # Сохраняем у приглашённого факт приглашения (для аналитики)
+        try:
+            # Опционально найдём владельца кода, чтобы сохранить invited_by_user_id
+            owner_id = await supabase_client.get_referral_owner_id(referral_code)
+            update_payload = {'invited_by_referral_code': referral_code}
+            if owner_id and int(owner_id) != int(user.id):
+                update_payload['invited_by_user_id'] = int(owner_id)
+            await supabase_client.update_user(user.id, update_payload)
+        except Exception as e:
+            logger.warning(f"Не удалось записать invited_by_*: {e}")
         # Начисляем билет пригласителю, если не самореферал и не дубль
         try:
             await supabase_client.add_referral_ticket(referral_code, referred_id=user.id)

@@ -206,6 +206,16 @@ def get_or_create_referral_code():
             user = rows[0]
             code = user.get('referral_code')
             if code:
+                # ensure referrals upsert
+                try:
+                    _ = requests.post(
+                        f"{SUPABASE_URL}/rest/v1/referrals",
+                        headers={**supabase_headers, 'Prefer': 'resolution=merge-duplicates'},
+                        json={'telegram_id': int(telegram_id), 'referral_code': code},
+                        timeout=15
+                    )
+                except Exception:
+                    pass
                 return jsonify({'success': True, 'referral_code': code})
             # 3) else create code and patch
             import random, string
@@ -218,6 +228,16 @@ def get_or_create_referral_code():
                 timeout=15
             )
             if patch_resp.status_code in (200, 204):
+                # ensure referrals upsert
+                try:
+                    _ = requests.post(
+                        f"{SUPABASE_URL}/rest/v1/referrals",
+                        headers={**supabase_headers, 'Prefer': 'resolution=merge-duplicates'},
+                        json={'telegram_id': int(telegram_id), 'referral_code': code},
+                        timeout=15
+                    )
+                except Exception:
+                    pass
                 return jsonify({'success': True, 'referral_code': code})
             return jsonify({'success': False, 'error': 'Failed to set referral_code', 'detail': patch_resp.text}), 500
         # 4) user doesn't exist -> insert with minimal fields
@@ -239,6 +259,16 @@ def get_or_create_referral_code():
             timeout=15
         )
         if insert_resp.status_code in (200, 201):
+            # ensure referrals upsert
+            try:
+                _ = requests.post(
+                    f"{SUPABASE_URL}/rest/v1/referrals",
+                    headers={**supabase_headers, 'Prefer': 'resolution=merge-duplicates'},
+                    json={'telegram_id': int(telegram_id), 'referral_code': code},
+                    timeout=15
+                )
+            except Exception:
+                pass
             return jsonify({'success': True, 'referral_code': code})
         return jsonify({'success': False, 'error': 'Failed to create user', 'detail': insert_resp.text}), 500
     except Exception as e:

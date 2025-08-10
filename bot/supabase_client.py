@@ -8,6 +8,7 @@ import os
 import logging
 import aiohttp
 import json
+import requests
 from typing import Dict, List, Optional
 from dotenv import load_dotenv
 
@@ -149,12 +150,28 @@ class SupabaseClient:
         return code
 
     async def get_referral_owner_id(self, referral_code: str) -> Optional[int]:
+        """Вернуть telegram_id владельца кода.
+        Сначала ищем в таблице referrals. Если не найдено — fallback на users.referral_code.
+        """
         referral = await self.get_referral_by_code(referral_code)
         if referral and 'telegram_id' in referral:
             try:
                 return int(referral['telegram_id'])
             except Exception:
                 return None
+        # Fallback: поиск владельца по users.referral_code
+        try:
+            result = await self._make_request('GET', f"users?referral_code=eq.{referral_code}&select=telegram_id")
+            if isinstance(result, list) and result:
+                owner_row = result[0]
+                owner_id_raw = owner_row.get('telegram_id')
+                if owner_id_raw is not None:
+                    try:
+                        return int(owner_id_raw)
+                    except Exception:
+                        return None
+        except Exception:
+            pass
         return None
 
     async def has_referral_join(self, referrer_id: int, referred_id: int) -> bool:
