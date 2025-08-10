@@ -156,9 +156,10 @@ def main() -> None:
     ap.add_argument("--photo-file", default=None, help="Local photo file path to send")
     ap.add_argument("--start-from", type=int, default=0, help="Offset in users list")
     ap.add_argument("--limit", type=int, default=None, help="Max users to send to")
-    ap.add_argument("--sleep", type=float, default=0.05, help="Sleep between requests (seconds)")
+    ap.add_argument("--sleep", type=float, default=None, help="Sleep between requests (seconds). If omitted, you will be prompted (default 0.3s)")
     ap.add_argument("--report", default="logs/broadcast_report.jsonl", help="Path to JSONL report")
     ap.add_argument("--dry", action="store_true", help="Dry run (no sends)")
+    ap.add_argument("--yes", action="store_true", help="Do not ask for confirmation (non-interactive)")
     args = ap.parse_args()
 
     if not TELEGRAM_BOT_TOKEN:
@@ -174,6 +175,40 @@ def main() -> None:
     total = len(users)
     sent = failed = skipped = 0
 
+    # Determine sleep (rate limiting safety)
+    sleep_s: float
+    if args.sleep is None:
+        # prompt user
+        try:
+            user_in = input("Задержка между отправками, сек [0.3]: ").strip()
+            sleep_s = float(user_in) if user_in else 0.3
+        except Exception:
+            sleep_s = 0.3
+    else:
+        sleep_s = max(0.0, args.sleep)
+
+    # Summary and confirmation
+    summary = {
+        "users": total,
+        "sleep": sleep_s,
+        "dry": args.dry,
+        "parse_mode": args.parse_mode,
+        "photo_url": bool(args.photo_url),
+        "photo_file": bool(photo_path),
+    }
+    print(json.dumps({"broadcast": summary}, ensure_ascii=False))
+    if total == 0:
+        print("Нет пользователей для отправки")
+        return
+    if not args.dry and not args.yes:
+        try:
+            go = input("Стартуем отправку? [y/N]: ").strip().lower()
+        except Exception:
+            go = "n"
+        if go not in ("y", "yes"):  # abort
+            print("Отменено пользователем")
+            return
+
     Path(args.report).parent.mkdir(parents=True, exist_ok=True)
     with open(args.report, "w", encoding="utf-8") as rep:
         for idx, user in enumerate(users, start=1):
@@ -186,6 +221,7 @@ def main() -> None:
             detail = ""
             if args.dry:
                 skipped += 1
+                print(f"[{idx}/{total}] {uid}: DRY-RUN", flush=True)
             else:
                 ok = False
                 if photo_path or args.photo_url:
@@ -206,9 +242,11 @@ def main() -> None:
                 if ok:
                     sent += 1
                     status = "sent"
+                    print(f"[{idx}/{total}] {uid}: OK", flush=True)
                 else:
                     failed += 1
                     status = f"error:{detail}"
+                    print(f"[{idx}/{total}] {uid}: ERROR -> {detail}", flush=True)
 
             rep.write(json.dumps({
                 "idx": idx,
@@ -226,9 +264,10 @@ def main() -> None:
                     retry_after = int(detail.split(":", 1)[1])
                 except Exception:
                     retry_after = 1
+                print(f"rate limited: sleep {retry_after + 0.5:.1f}s", flush=True)
                 time.sleep(retry_after + 0.5)
             else:
-                time.sleep(max(0.0, args.sleep))
+                time.sleep(sleep_s)
 
     print(json.dumps({
         "users": total,
