@@ -47,6 +47,19 @@ SUPABASE_URL = (os.getenv("SUPABASE_URL") or "").strip()
 SUPABASE_SERVICE_ROLE_KEY = (os.getenv("SUPABASE_SERVICE_ROLE_KEY") or "").strip()
 
 
+# Predefined templates (ru)
+TEMPLATES = {
+    # 1) Long ref-fix announcement (requested to be first)
+    "ref_fix_long": (
+        "Хеееей, {first_name}! ✨\n"
+        "Мы починили отображение билетов за приглашённых друзей и доначислили всё, что могло не подтянуться раньше. Теперь вся актуальная статистика у тебя в Mini App — загляни, чтобы увидеть обновлённые цифры.\n"
+        "Хочешь быстро и без кликов? Просто отправь боту команду /tickets — там сразу видно: за папку, за друзей и общий итог.\n"
+        "Спасибо, что зовёшь друзей и делишься нашим приложением — ты реально помогаешь нам расти! 🖤\n"
+        "Дальше — ещё интереснее: готовим новые фичи, дропы и сюрпризы для участников. Следи за обновлениями, будет жарко! 🔥"
+    ),
+}
+
+
 def fetch_all_users(batch_size: int = 2000, start_from: int = 0, limit: Optional[int] = None) -> List[dict]:
     headers = {
         "apikey": SUPABASE_SERVICE_ROLE_KEY,
@@ -150,6 +163,8 @@ def tg_send_photo(chat_id: int, photo_url: Optional[str], photo_file: Optional[P
 def main() -> None:
     ap = argparse.ArgumentParser(description="Broadcast to all users from Supabase users table")
     ap.add_argument("--text", default="", help="Text message (or photo caption if photo provided)")
+    ap.add_argument("--template", choices=sorted(TEMPLATES.keys()), default=None, help="Use predefined template text if --text is not provided")
+    ap.add_argument("--list-templates", action="store_true", help="List available templates and exit")
     ap.add_argument("--parse-mode", choices=["HTML", "Markdown", "MarkdownV2"], default=None)
     ap.add_argument("--disable-preview", action="store_true", help="Disable link preview for text messages")
     ap.add_argument("--photo-url", default=None, help="Photo URL to send")
@@ -162,6 +177,12 @@ def main() -> None:
     ap.add_argument("--yes", action="store_true", help="Do not ask for confirmation (non-interactive)")
     args = ap.parse_args()
 
+    # List templates and exit
+    if args.list_templates:
+        listing = {name: (TEMPLATES[name][:120] + ("…" if len(TEMPLATES[name]) > 120 else "")) for name in sorted(TEMPLATES.keys())}
+        print(json.dumps({"templates": listing}, ensure_ascii=False, indent=2))
+        return
+
     if not TELEGRAM_BOT_TOKEN:
         raise SystemExit("TELEGRAM_BOT_TOKEN not set")
     if not (SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY):
@@ -170,6 +191,10 @@ def main() -> None:
     photo_path = Path(args.photo_file).resolve() if args.photo_file else None
     if photo_path and not photo_path.exists():
         raise SystemExit(f"Photo file not found: {photo_path}")
+
+    # Resolve message text from template if not provided
+    if (not args.text) and args.template:
+        args.text = TEMPLATES[args.template]
 
     users = fetch_all_users(start_from=args.start_from, limit=args.limit)
     total = len(users)
