@@ -99,6 +99,28 @@ TEMPLATES = {
     ),
 }
 
+def fetch_user_profile(telegram_id: int) -> Optional[dict]:
+    """Get user profile (first_name, username) from Supabase by telegram_id."""
+    if not (SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY):
+        return None
+    headers = {
+        "apikey": SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+    }
+    params = {
+        "select": "telegram_id,first_name,username",
+        "telegram_id": f"eq.{telegram_id}",
+        "limit": "1",
+    }
+    try:
+        r = requests.get(f"{SUPABASE_URL}/rest/v1/users", headers=headers, params=params, timeout=15)
+        if r.status_code not in (200, 206):
+            return None
+        rows = r.json() or []
+        return rows[0] if rows else None
+    except Exception:
+        return None
+
 
 def fetch_all_users(batch_size: int = 2000, start_from: int = 0, limit: Optional[int] = None) -> List[dict]:
     headers = {
@@ -217,9 +239,11 @@ def main() -> None:
     ap.add_argument("--yes", action="store_true", help="Do not ask for confirmation (non-interactive)")
     args = ap.parse_args()
 
-    # List templates and exit
+    # List templates and exit (show requested long template first)
     if args.list_templates:
-        listing = {name: (TEMPLATES[name][:120] + ("…" if len(TEMPLATES[name]) > 120 else "")) for name in sorted(TEMPLATES.keys())}
+        keys = list(TEMPLATES.keys())
+        ordered = ["ref_fix_long"] + [k for k in sorted(keys) if k != "ref_fix_long"]
+        listing = {name: (TEMPLATES[name][:120] + ("…" if len(TEMPLATES[name]) > 120 else "")) for name in ordered}
         print(json.dumps({"templates": listing}, ensure_ascii=False, indent=2))
         return
 
@@ -266,6 +290,42 @@ def main() -> None:
         print("Нет пользователей для отправки")
         return
     if not args.dry and not args.yes:
+        # Optional test send to specific chat before mass broadcast
+        try:
+            test_id_raw = input("Тестовый chat_id (Enter — пропустить): ").strip()
+        except Exception:
+            test_id_raw = ""
+        if test_id_raw:
+            try:
+                test_id = int(test_id_raw)
+            except Exception:
+                print("Некорректный chat_id, пропускаем тестовую отправку")
+                test_id = None
+            if test_id:
+                prof = fetch_user_profile(test_id) or {}
+                first_name = (prof.get("first_name") or "").strip()
+                username = (prof.get("username") or "").strip()
+                test_text = (args.text or "").replace("{first_name}", first_name).replace("{username}", username)
+                ok = False
+                detail = ""
+                if photo_path or args.photo_url:
+                    ok, detail = tg_send_photo(
+                        chat_id=test_id,
+                        photo_url=args.photo_url,
+                        photo_file=photo_path,
+                        caption=(test_text or None),
+                        parse_mode=args.parse_mode,
+                    )
+                else:
+                    ok, detail = tg_send_message(
+                        chat_id=test_id,
+                        text=test_text,
+                        parse_mode=args.parse_mode,
+                        disable_preview=args.disable_preview,
+                    )
+                print(f"TEST -> {test_id}: {'OK' if ok else 'ERROR'} {detail}")
+
+        # Final confirmation
         try:
             go = input("Стартуем отправку? [y/N]: ").strip().lower()
         except Exception:
