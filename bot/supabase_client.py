@@ -8,6 +8,7 @@ import os
 import logging
 import aiohttp
 import json
+import asyncio
 import requests
 from typing import Dict, List, Optional
 from dotenv import load_dotenv
@@ -30,37 +31,38 @@ class SupabaseClient:
             'Content-Type': 'application/json',
             'Prefer': 'return=representation'
         }
-        # Общая aiohttp-сессия (keep-alive, таймауты)
-        timeout = aiohttp.ClientTimeout(total=20)
-        connector = aiohttp.TCPConnector(limit=50, keepalive_timeout=30)
-        self._session = aiohttp.ClientSession(timeout=timeout, connector=connector)
+        # Общая aiohttp-сессия (не используется в текущем варианте _make_request, оставлена для совместимости)
+        try:
+            timeout = aiohttp.ClientTimeout(total=20)
+            connector = aiohttp.TCPConnector(limit=50, keepalive_timeout=30)
+            self._session = aiohttp.ClientSession(timeout=timeout, connector=connector)
+        except Exception:
+            self._session = None
     
     async def _make_request(self, method: str, endpoint: str, data: Dict = None, params: Dict = None) -> Dict:
-        """Выполнить HTTP запрос к Supabase (aiohttp)"""
+        """Выполнить HTTP запрос к Supabase через requests в отдельном потоке (устраняет ошибки async-timeout)."""
         url = f"{self.base_url}/rest/v1/{endpoint}"
-        for attempt in range(2):
+
+        def do_request():
             try:
-                async with self._session.request(method.upper(), url, headers=self.headers, json=data, params=params) as resp:
-                    status = resp.status
-                    text = await resp.text()
-                    if 200 <= status < 300:
-                        if text:
-                            try:
-                                return json.loads(text)
-                            except Exception:
-                                return {}
-                        return {}
-                    else:
-                        logger.error(f"Ошибка Supabase API {status} @ {endpoint} - {text}")
-                        if attempt == 0 and status >= 500:
-                            continue
-                        return {'error': text, 'status': status}
+                resp = requests.request(method.upper(), url, headers=self.headers, json=data, params=params, timeout=20)
+                status = resp.status_code
+                text = resp.text or ''
+                if 200 <= status < 300:
+                    if text:
+                        try:
+                            return json.loads(text)
+                        except Exception:
+                            return {}
+                    return {}
+                else:
+                    logger.error(f"Ошибка Supabase API {status} @ {endpoint} - {text}")
+                    return {'error': text, 'status': status}
             except Exception as e:
                 logger.error(f"Ошибка запроса к Supabase: {e}")
-                if attempt == 0:
-                    continue
                 return {'error': str(e)}
-        return {'error': 'unknown'}
+
+        return await asyncio.to_thread(do_request)
     
     async def create_user(self, user_data: Dict) -> Dict:
         """Создание пользователя"""
