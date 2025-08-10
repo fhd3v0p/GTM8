@@ -30,7 +30,7 @@ import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple, Set
 
 import requests
 
@@ -173,7 +173,10 @@ def tg_send_message(chat_id: int, text: str, parse_mode: Optional[str], disable_
     }
     if parse_mode:
         payload["parse_mode"] = parse_mode
-    r = requests.post(url, json=payload, timeout=20)
+    try:
+        r = requests.post(url, json=payload, timeout=20)
+    except requests.RequestException as e:
+        return False, f"request_exception:{type(e).__name__}:{str(e)}"
     if r.status_code == 429:
         try:
             retry = int((r.json() or {}).get("parameters", {}).get("retry_after", 1))
@@ -199,14 +202,20 @@ def tg_send_photo(chat_id: int, photo_url: Optional[str], photo_file: Optional[P
                 payload["caption"] = caption
             if parse_mode:
                 payload["parse_mode"] = parse_mode
-            r = requests.post(url, data=payload, files=data, timeout=30)
+            try:
+                r = requests.post(url, data=payload, files=data, timeout=30)
+            except requests.RequestException as e:
+                return False, f"request_exception:{type(e).__name__}:{str(e)}"
     else:
         payload = {"chat_id": chat_id, "photo": photo_url}
         if caption:
             payload["caption"] = caption
         if parse_mode:
             payload["parse_mode"] = parse_mode
-        r = requests.post(url, json=payload, timeout=20)
+        try:
+            r = requests.post(url, json=payload, timeout=20)
+        except requests.RequestException as e:
+            return False, f"request_exception:{type(e).__name__}:{str(e)}"
     if r.status_code == 429:
         try:
             retry = int((r.json() or {}).get("parameters", {}).get("retry_after", 1))
@@ -237,6 +246,8 @@ def main() -> None:
     ap.add_argument("--report", default="logs/broadcast_report.jsonl", help="Path to JSONL report")
     ap.add_argument("--dry", action="store_true", help="Dry run (no sends)")
     ap.add_argument("--yes", action="store_true", help="Do not ask for confirmation (non-interactive)")
+    ap.add_argument("--exclude-ids", default="", help="Comma-separated telegram_ids to skip (e.g. 1,2,3)")
+    ap.add_argument("--exclude-file", default=None, help="Path to file with telegram_ids to skip (one per line)")
     args = ap.parse_args()
 
     # List templates and exit (show requested long template first)
@@ -336,6 +347,34 @@ def main() -> None:
 
     Path(args.report).parent.mkdir(parents=True, exist_ok=True)
     with open(args.report, "w", encoding="utf-8") as rep:
+        # Build exclusion set
+        excluded: Set[int] = set()
+        # from CLI list
+        if hasattr(args, "exclude_ids") and args.exclude_ids:
+            for part in args.exclude_ids.replace(";", ",").split(","):
+                part = part.strip()
+                if not part:
+                    continue
+                try:
+                    excluded.add(int(part))
+                except Exception:
+                    pass
+        # from file
+        if hasattr(args, "exclude_file") and args.exclude_file:
+            p = Path(args.exclude_file)
+            if p.exists():
+                try:
+                    for line in p.read_text(encoding="utf-8").splitlines():
+                        line = line.strip()
+                        if not line or line.startswith("#"):
+                            continue
+                        try:
+                            excluded.add(int(line))
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
         for idx, user in enumerate(users, start=1):
             uid = int(user["telegram_id"])  # chat id
             # Per-user templating
@@ -344,34 +383,45 @@ def main() -> None:
             text = (args.text or "").replace("{first_name}", first_name).replace("{username}", username)
             status = "dry"
             detail = ""
-            if args.dry:
+            if uid in excluded:
+                skipped += 1
+                status = "skipped:excluded"
+                detail = "excluded"
+                print(f"[{idx}/{total}] {uid}: SKIP (excluded)", flush=True)
+            elif args.dry:
                 skipped += 1
                 print(f"[{idx}/{total}] {uid}: DRY-RUN", flush=True)
             else:
-                ok = False
-                if photo_path or args.photo_url:
-                    ok, detail = tg_send_photo(
-                        chat_id=uid,
-                        photo_url=args.photo_url,
-                        photo_file=photo_path,
-                        caption=(text or None),
-                        parse_mode=args.parse_mode,
-                    )
-                else:
-                    ok, detail = tg_send_message(
-                        chat_id=uid,
-                        text=text,
-                        parse_mode=args.parse_mode,
-                        disable_preview=args.disable_preview,
-                    )
-                if ok:
-                    sent += 1
-                    status = "sent"
-                    print(f"[{idx}/{total}] {uid}: OK", flush=True)
-                else:
+                try:
+                    ok = False
+                    if photo_path or args.photo_url:
+                        ok, detail = tg_send_photo(
+                            chat_id=uid,
+                            photo_url=args.photo_url,
+                            photo_file=photo_path,
+                            caption=(text or None),
+                            parse_mode=args.parse_mode,
+                        )
+                    else:
+                        ok, detail = tg_send_message(
+                            chat_id=uid,
+                            text=text,
+                            parse_mode=args.parse_mode,
+                            disable_preview=args.disable_preview,
+                        )
+                    if ok:
+                        sent += 1
+                        status = "sent"
+                        print(f"[{idx}/{total}] {uid}: OK", flush=True)
+                    else:
+                        failed += 1
+                        status = f"error:{detail}"
+                        print(f"[{idx}/{total}] {uid}: ERROR -> {detail}", flush=True)
+                except Exception as e:
                     failed += 1
-                    status = f"error:{detail}"
-                    print(f"[{idx}/{total}] {uid}: ERROR -> {detail}", flush=True)
+                    status = f"exception:{type(e).__name__}:{str(e)}"
+                    detail = status
+                    print(f"[{idx}/{total}] {uid}: ERROR -> {status}", flush=True)
 
             rep.write(json.dumps({
                 "idx": idx,
