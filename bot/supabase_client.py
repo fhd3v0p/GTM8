@@ -32,12 +32,8 @@ class SupabaseClient:
             'Prefer': 'return=representation'
         }
         # Общая aiohttp-сессия (не используется в текущем варианте _make_request, оставлена для совместимости)
-        try:
-            timeout = aiohttp.ClientTimeout(total=20)
-            connector = aiohttp.TCPConnector(limit=50, keepalive_timeout=30)
-            self._session = aiohttp.ClientSession(timeout=timeout, connector=connector)
-        except Exception:
-            self._session = None
+        # Не создаём aiohttp-сессию, чтобы не было предупреждений об утечках, используем requests в _make_request
+        self._session = None
     
     async def _make_request(self, method: str, endpoint: str, data: Dict = None, params: Dict = None) -> Dict:
         """Выполнить HTTP запрос к Supabase через requests в отдельном потоке (устраняет ошибки async-timeout)."""

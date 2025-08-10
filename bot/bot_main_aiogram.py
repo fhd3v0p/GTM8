@@ -162,20 +162,24 @@ async def cmd_start(message: Message):
 
 
 async def save_user(user_id: int, username: str, first_name: str, last_name: str):
-    user_data = {
-        'telegram_id': user_id,
-        'username': username,
-        'first_name': first_name,
-        'last_name': last_name,
-        'subscription_tickets': 0,
-        'referral_tickets': 0,
-        'total_tickets': 0
-    }
     existing_user = await supabase_client.get_user(user_id)
     if existing_user:
-        await supabase_client.update_user(user_id, user_data)
+        # Обновляем только профильные поля, не трогаем счётчики билетов
+        await supabase_client.update_user(user_id, {
+            'username': username,
+            'first_name': first_name,
+            'last_name': last_name,
+        })
     else:
-        await supabase_client.create_user(user_data)
+        await supabase_client.create_user({
+            'telegram_id': user_id,
+            'username': username,
+            'first_name': first_name,
+            'last_name': last_name,
+            'subscription_tickets': 0,
+            'referral_tickets': 0,
+            'total_tickets': 0
+        })
 
 
 LAST_CHECK_AT: dict[int, float] = {}
