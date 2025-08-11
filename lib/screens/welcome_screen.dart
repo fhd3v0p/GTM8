@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:slide_to_act/slide_to_act.dart';
 import 'giveaway_screen.dart';
  
-import '../services/telegram_webapp_service.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -43,7 +42,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
 
     _startOrbitAnimation();
-    TelegramWebAppService.disableVerticalSwipe();
   }
 
   void _startOrbitAnimation() {
