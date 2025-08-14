@@ -1,6 +1,7 @@
 [build]
 builder = "DOCKERFILE"
 buildCommand = "flutter build web --release"
+watchPatterns = ["**/*"]
 
 [deploy]
 restartPolicyType = "ON_FAILURE"

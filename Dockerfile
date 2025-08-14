@@ -25,8 +25,9 @@ FROM nginx:alpine
 # Copy built web app
 COPY --from=build /app/build/web /usr/share/nginx/html
 
-# Copy nginx configuration
+# Copy nginx configuration and verify it's static port
 COPY nginx-railway.conf /etc/nginx/conf.d/default.conf
+RUN cat /etc/nginx/conf.d/default.conf | head -3
 
 # Expose port
 EXPOSE 8080
