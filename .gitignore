@@ -1,34 +1,68 @@
-# Centralized environment file (do not commit)
-.env
-
-# Logs
-logs/
+# Miscellaneous
+*.class
 *.log
-
-# Python
-__pycache__/
 *.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
 
-# Flutter build artifacts
-build/
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/flutter_export_environment.sh
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
 .packages
+.pub-cache/
+.pub/
+/build/
 
-# Exclude generated web bundle from VCS (managed via SCP)
-web/
+# Symbolication related
+app.*.symbols
 
-# iOS/macOS
-ios/Pods/
-macos/Pods/
-*.xcworkspace
-DerivedData/
+# Obfuscation related
+app.*.map.json
 
-# Android
-android/.gradle/
-android/build/
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
 
-# IDE
-.vscode/
-.idea/
+# Environment files
+.env
+assets/.env
+
+# Web build
+/build/web/
+
+# iOS
+ios/Podfile.lock
+ios/.symlinks/
+ios/Flutter/flutter_export_environment.sh
+
+# macOS
+macos/Flutter/ephemeral/
+
+# Linux
+linux/flutter/ephemeral/
+
+# Windows
+windows/flutter/ephemeral/
+
+# Railway specific
+.railway/

@@ -1,30 +1,3 @@
-// Hard release: unregister any existing SW and clear caches, then reload clients
-self.addEventListener('install', (event) => {
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', (event) => {
-  event.waitUntil((async () => {
-    try {
-      // Unregister this SW (and any previous one)
-      await self.registration.unregister();
-      // Clear all caches
-      const keys = await caches.keys();
-      await Promise.all(keys.map((k) => caches.delete(k)));
-      // Claim clients
-      await self.clients.claim();
-      // Soft refresh open windows to fetch fresh assets bypassing SW
-      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      for (const client of clients) {
-        try { client.navigate(client.url); } catch (_) {}
-      }
-    } catch (_) {}
-  })());
-});
-
-// No fetch handling => network wins
-self.addEventListener('fetch', () => {});
-
 'use strict';
 const MANIFEST = 'flutter-app-manifest';
 const TEMP = 'flutter-temp-cache';
