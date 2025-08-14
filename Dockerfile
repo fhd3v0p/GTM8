@@ -26,10 +26,10 @@ FROM nginx:alpine
 COPY --from=build /app/build/web /usr/share/nginx/html
 
 # Copy nginx configuration
-COPY nginx-railway.conf /etc/nginx/conf.d/default.conf
+COPY nginx-railway.conf /etc/nginx/conf.d/default.conf.template
 
 # Expose port
 EXPOSE 8080
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Start nginx with envsubst to replace PORT variable
+CMD envsubst '${PORT}' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'
