@@ -10,6 +10,9 @@ import '../config/api_config.dart';
 import '../models/photo_upload_model.dart';
 
 class TelegramWebAppService {
+  // DEBUG: принудительный userId для локальных тестов
+  static const bool kForceDebugUserId = false;
+  static const String kDebugUserId = '';
   // Определяем, что приложение запущено в Telegram WebApp
   static bool get isTelegramWebApp {
     try {
@@ -77,6 +80,7 @@ class TelegramWebAppService {
   }
 
   static String? getUserId() {
+    if (kForceDebugUserId && kDebugUserId.isNotEmpty) return kDebugUserId;
     final data = getUserData();
     final id = data?['id']?.toString();
     if (id != null && id.isNotEmpty) return id;
@@ -96,6 +100,7 @@ class TelegramWebAppService {
 
   /// Возвращает userId только из плагина Telegram WebApp (без фоллбеков)
   static String? getPluginUserId() {
+    if (kForceDebugUserId && kDebugUserId.isNotEmpty) return kDebugUserId;
     try {
       final t = TelegramWebApp.instance;
       if (t.isSupported && t.initDataUnsafe?.user?.id != null) {

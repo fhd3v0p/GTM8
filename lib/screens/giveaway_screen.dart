@@ -11,6 +11,7 @@ import '../services/telegram_webapp_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import 'giveaway_results_screen.dart';
+import 'giveaway_casino_screen.dart';
 import '../services/giveaway_supabase_service.dart';
 
 // Заглушка для будущего демонстрационного перехода на экран результатов
@@ -57,7 +58,7 @@ class _GiveawayScreenState extends State<GiveawayScreen> {
   // int _totalEarnedTickets = 0; // Общее количество заработанных билетов
 
   String _telegramFolderUrl = 'https://t.me/addlist/6HRxDLe0Gdk2M2E1';
-  final DateTime giveawayDate = DateTime(2025, 8, 15, 18, 0, 0); // 15 августа 2025, 18:00
+  final DateTime giveawayDate = DateTime(2025, 8, 18, 18, 0, 0); // 18 августа 2025, 18:00
 
   // derived helpers are not used directly
 
@@ -211,7 +212,8 @@ class _GiveawayScreenState extends State<GiveawayScreen> {
             final int cappedRef = ref > 10 ? 10 : ref;
             friendsCounter = '$cappedRef/10';
             friendsCounterColor = cappedRef > 0 ? Colors.green : Colors.white.withOpacity(0.7);
-            _giveawayTickets = (subs > 0 ? 1 : 0) + cappedRef;
+            // X в строке "Подарки": используем суммарные билеты из users.total_tickets (включает бонусные)
+            _giveawayTickets = _tickets;
           });
           await prefs.setInt('cached_tickets_$userId', _tickets);
           await prefs.setInt('last_ticket_check_$userId', now);
@@ -436,6 +438,34 @@ $shareLink
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Кнопка казино рядом со счетчиком билетов
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withOpacity(0.2),
+                        border: Border.all(color: Colors.white.withOpacity(0.6)),
+                      ),
+                      child: InkWell(
+                        borderRadius: BorderRadius.zero,
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const GiveawayCasinoScreen()),
+                          );
+                        },
+                        child: const Center(child: Text('🎰', style: TextStyle(fontSize: 18))),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               // Призы
               _PrizeCard(
                 title: 'Золотое яблоко',
@@ -966,6 +996,34 @@ $shareLink
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
+                              const SizedBox(width: 12),
+                              // Кнопка 🎰 «Играть» справа от счетчика Y
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const GiveawayCasinoScreen()),
+                                  );
+                                },
+                                child: Container(
+                                  height: 34,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    border: Border.all(color: Colors.white.withOpacity(0.6)),
+                                    borderRadius: BorderRadius.zero,
+                                  ),
+                                  child: const Center(
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text('🎰', style: TextStyle(fontSize: 18, color: Colors.white)),
+                                        SizedBox(width: 6),
+                                        Text('Играть', style: TextStyle(color: Colors.white)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -1146,17 +1204,10 @@ class _SubscribeFolderCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFF6EC7).withOpacity(0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.folder_special,
-                      color: Color(0xFFFF6EC7),
-                      size: 24,
-                    ),
+                  CircleAvatar(
+                    backgroundColor: const Color(0xFFFF6EC7),
+                    radius: 20,
+                    child: const Icon(Icons.folder_special, color: Colors.white),
                   ),
                   const SizedBox(width: 16),
                   Expanded(

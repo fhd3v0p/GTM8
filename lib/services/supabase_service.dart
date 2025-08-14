@@ -317,4 +317,27 @@ class SupabaseService {
 
   // === UTILITY ===
   bool get isConfigured => ApiConfig.isConfigured;
+
+  // === GIVEAWAY CASINO ===
+  /// Вызов RPC casino_spin на Supabase. Сервер решает исход, лимиты и выдачу билета.
+  /// Возвращает JSON вида:
+  /// { 'reel1': int, 'reel2': int, 'reel3': int, 'is_win': bool, 'attempts_left': int, 'user_wins': int, 'total_awarded': int }
+  Future<Map<String, dynamic>> casinoSpin(int telegramId) async {
+    final uri = Uri.parse('${ApiConfig.apiBaseUrl}/rpc/casino_spin');
+    final resp = await http.post(
+      uri,
+      headers: {
+        ...ApiConfig.headers,
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'telegram_id': telegramId}),
+    );
+    if (resp.statusCode == 200) {
+      final body = jsonDecode(resp.body);
+      if (body is Map<String, dynamic>) return body;
+      if (body is String) return {'message': body};
+      return {};
+    }
+    throw Exception('casino_spin failed: ${resp.statusCode} ${resp.body}');
+  }
 } 
