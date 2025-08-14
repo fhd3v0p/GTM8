@@ -13,6 +13,9 @@ RUN flutter pub get
 # Copy source code
 COPY . .
 
+# Create .env files if they don't exist
+RUN touch .env assets/.env
+
 # Build web app
 RUN flutter build web --release
 

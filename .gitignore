@@ -43,9 +43,9 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Environment files
-.env
-assets/.env
+# Environment files (keeping templates for Railway)
+# .env
+# assets/.env
 
 # Web build
 /build/web/
