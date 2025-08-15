@@ -34,6 +34,7 @@ flutter:
     - assets/
     - assets/artists/
     - assets/fonts/
+    - assets/.env 
   
   fonts:
     - family: Lepka
