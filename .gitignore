@@ -50,6 +50,10 @@ app.*.map.json
 # Web build
 /build/web/
 
+# Server deployment folders
+web_local/
+web_local1/
+
 # iOS
 ios/Podfile.lock
 ios/.symlinks/
