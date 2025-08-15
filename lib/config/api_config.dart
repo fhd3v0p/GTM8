@@ -1,14 +1,16 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class ApiConfig {
-  // Environment variables через --dart-define
-  static const String supabaseUrl = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
-  static const String supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: '');
-  static const String ratingApiBaseUrl = String.fromEnvironment('RATING_API_BASE_URL', defaultValue: 'https://api.gtm.baby');
+  // Environment variables через flutter_dotenv
+  static String get supabaseUrl => dotenv.env['SUPABASE_URL'] ?? '';
+  static String get supabaseAnonKey => dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+  static String get ratingApiBaseUrl => dotenv.env['RATING_API_BASE_URL'] ?? 'https://api.gtm.baby';
 
   // Supabase Storage Configuration
-  static const String storageBucket = String.fromEnvironment('SUPABASE_STORAGE_BUCKET', defaultValue: 'gtm-assets-public');
+  static String get storageBucket => dotenv.env['SUPABASE_STORAGE_BUCKET'] ?? 'gtm-assets-public';
   // AI uploads (private bucket)
-  static const String aiUploadsBucket = String.fromEnvironment('SUPABASE_AI_BUCKET', defaultValue: 'gtm-ai-uploads');
-  static const String aiUploadsFolder = String.fromEnvironment('SUPABASE_AI_FOLDER', defaultValue: 'img');
+  static String get aiUploadsBucket => dotenv.env['SUPABASE_AI_BUCKET'] ?? 'gtm-ai-uploads';
+  static String get aiUploadsFolder => dotenv.env['SUPABASE_AI_FOLDER'] ?? 'img';
   
   // Storage Paths
   static const String avatarsPath = 'avatars';
@@ -51,7 +53,7 @@ class ApiConfig {
   };
   
   // Telegram Bot Token (используется в веб только для deep-links, не для авторизации)
-  static const String telegramBotToken = String.fromEnvironment('TELEGRAM_BOT_TOKEN', defaultValue: '');
+  static String get telegramBotToken => dotenv.env['TELEGRAM_BOT_TOKEN'] ?? '';
   
   // Validation
   static bool get isConfigured {

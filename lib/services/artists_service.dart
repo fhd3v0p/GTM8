@@ -6,7 +6,7 @@ import '../models/master_model.dart';
 class ArtistsService {
   static String get baseUrl => ApiConfig.supabaseUrl;
   static String get anonKey => ApiConfig.supabaseAnonKey;
-  static const String storageBucket = ApiConfig.storageBucket;
+  static String get storageBucket => ApiConfig.storageBucket;
   
   // Кэширование
   static final Map<String, dynamic> _cache = {};

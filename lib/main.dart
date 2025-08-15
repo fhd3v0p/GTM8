@@ -4,6 +4,7 @@ import 'screens/splash_screen.dart';
 import 'screens/giveaway_casino_screen.dart'; // FORCE: Ensure casino screen is included
 import 'services/telegram_webapp_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'config/api_config.dart';
 
 Future<void> main() async {
@@ -14,7 +15,16 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   print('✅ Flutter binding initialized');
   
-  // Получение environment variables через --dart-define (Vercel)
+  // Загрузка .env файла
+  print('🔍 Loading .env file...');
+  try {
+    await dotenv.load(fileName: ".env");
+    print('✅ .env file loaded successfully');
+  } catch (e) {
+    print('⚠️ Failed to load .env file: $e');
+    // Продолжаем без .env файла
+  }
+  
   print('🔍 Loading environment variables...');
   
   // Инициализация Supabase с безопасной проверкой
