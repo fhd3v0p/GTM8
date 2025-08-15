@@ -1,6 +1,6 @@
 [build]
-  command = "flutter build web --release"
-  publish = "build/web"
+  command = "cp web/_redirects web_local/_redirects"
+  publish = "web_local"
 
 [build.environment]
   FLUTTER_WEB = "true"
