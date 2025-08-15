@@ -66,3 +66,4 @@ windows/flutter/ephemeral/
 
 # Railway specific
 .railway/
+.vercel

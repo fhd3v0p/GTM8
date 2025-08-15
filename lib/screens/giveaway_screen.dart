@@ -1084,6 +1084,19 @@ $shareLink
                         ],
                       ),
                     ),
+                    // ТЕСТОВАЯ КНОПКА КАЗИНО
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      child: GradientButton(
+                        text: '🎰 КАЗИНО',
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const GiveawayCasinoScreen()),
+                          );
+                        },
+                        enabled: true,
+                      ),
+                    ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4).copyWith(bottom: 22),
                       child: GradientButton(

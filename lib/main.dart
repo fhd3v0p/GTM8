@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/splash_screen.dart';
+import 'screens/giveaway_casino_screen.dart'; // FORCE: Ensure casino screen is included
 import 'services/telegram_webapp_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -15,6 +16,12 @@ Future<void> main() async {
 
   TelegramWebAppService.initializeWebApp();
   TelegramWebAppService.disableVerticalSwipe();
+
+  // FORCE: Ensure casino screen is compiled into build
+  assert(() {
+    print('Casino screen type: ${GiveawayCasinoScreen}');
+    return true;
+  }());
 
   runApp(const MyApp());
 }
@@ -41,6 +48,10 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
+            // FORCE: Add routes to ensure casino screen is included
+      routes: {
+        '/casino': (context) => const GiveawayCasinoScreen(),
+      },
       home: const SplashScreen(),
     );
   }

@@ -16,7 +16,7 @@
   <meta http-equiv="Expires" content="0" />
 
   <!-- Версионированный Service Worker (форсирует подхват новой версии) -->
-  <meta name="flutter-service-worker" content="flutter_service_worker.js?v=FORCE_20250809_2" />
+  <meta name="flutter-service-worker" content="flutter_service_worker.js?v=FORCE_20250815_3" />
 
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
@@ -46,7 +46,7 @@
   <script>
     (function () {
       // 1) Одноразовый сброс SW и кэшей у клиента для этой версии
-      const FLAG = 'gtm_sw_cleared_v2_20250809_2';
+      const FLAG = 'gtm_sw_cleared_v3_20250815_3';
       if (!localStorage.getItem(FLAG) && 'serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations()
           .then(regs => Promise.all(regs.map(r => r.unregister())))
@@ -87,8 +87,8 @@
   </script>
 
   <!-- Версионированные загрузчики Flutter (пробивают кэш Telegram/WebView) -->
-  <script src="flutter.js?v=FORCE_20250809_2" defer></script>
-  <script src="flutter_bootstrap.js?v=FORCE_20250809_2" defer></script>
+  <script src="flutter.js?v=FORCE_20250815_3" defer></script>
+  <script src="flutter_bootstrap.js?v=FORCE_20250815_3" defer></script>
 </body>
 </html>
 
