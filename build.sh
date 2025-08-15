@@ -20,6 +20,12 @@ flutter pub get
 echo "🏗️ Building for production..."
 
 # Load environment variables from .env file if it exists
+if [ -f ".env" ]; then
+  echo "📦 Loading environment variables from .env..."
+  export $(grep -v '^#' .env | xargs)
+fi
+
+# Also try assets/.env for backward compatibility
 if [ -f "assets/.env" ]; then
   echo "📦 Loading environment variables from assets/.env..."
   export $(grep -v '^#' assets/.env | xargs)
