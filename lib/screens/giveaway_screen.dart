@@ -11,7 +11,7 @@ import '../services/telegram_webapp_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import 'giveaway_results_screen.dart';
-import 'giveaway_casino_screen.dart';
+
 import '../services/giveaway_supabase_service.dart';
 
 // Заглушка для будущего демонстрационного перехода на экран результатов
@@ -438,34 +438,7 @@ $shareLink
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Кнопка казино рядом со счетчиком билетов
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.2),
-                        border: Border.all(color: Colors.white.withOpacity(0.6)),
-                      ),
-                      child: InkWell(
-                        borderRadius: BorderRadius.zero,
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const GiveawayCasinoScreen()),
-                          );
-                        },
-                        child: const Center(child: Text('🎰', style: TextStyle(fontSize: 18))),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+
               // Призы
               _PrizeCard(
                 title: 'Золотое яблоко',
@@ -841,7 +814,7 @@ $shareLink
 
   @override
   Widget build(BuildContext context) {
-    final bool isGoToAppButtonEnabled = _giveawayTickets > 0 || _task1ButtonPressed || _task2ButtonPressed;
+    final bool isGoToAppButtonEnabled = true; // Always enabled - no longer depends on tasks
     // final int task2Max = task2Progress < 10 ? task2Progress + 1 : 10;
     // final int totalTickets = task1Progress + task2Progress;
 
@@ -996,34 +969,7 @@ $shareLink
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              // Кнопка 🎰 «Играть» справа от счетчика Y
-                              GestureDetector(
-                                onTap: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const GiveawayCasinoScreen()),
-                                  );
-                                },
-                                child: Container(
-                                  height: 34,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    border: Border.all(color: Colors.white.withOpacity(0.6)),
-                                    borderRadius: BorderRadius.zero,
-                                  ),
-                                  child: const Center(
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text('🎰', style: TextStyle(fontSize: 18, color: Colors.white)),
-                                        SizedBox(width: 6),
-                                        Text('Играть', style: TextStyle(color: Colors.white)),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
+
                             ],
                           ),
                         ),
@@ -1084,19 +1030,7 @@ $shareLink
                         ],
                       ),
                     ),
-                    // ТЕСТОВАЯ КНОПКА КАЗИНО
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      child: GradientButton(
-                        text: '🎰 КАЗИНО',
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const GiveawayCasinoScreen()),
-                          );
-                        },
-                        enabled: true,
-                      ),
-                    ),
+
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4).copyWith(bottom: 22),
                       child: GradientButton(
