@@ -13,6 +13,7 @@ import '../services/api_service.dart';
 import 'giveaway_results_screen.dart';
 
 import '../services/giveaway_supabase_service.dart';
+import 'giveaway_casino_screen.dart';
 
 // Заглушка для будущего демонстрационного перехода на экран результатов
 // В проде держим false, чтобы ничего не отображалось и автоперехода не было
@@ -814,7 +815,7 @@ $shareLink
 
   @override
   Widget build(BuildContext context) {
-    final bool isGoToAppButtonEnabled = true; // Always enabled - no longer depends on tasks
+    final bool isGoToAppButtonEnabled = _task1ButtonPressed && _task2ButtonPressed;
     // final int task2Max = task2Progress < 10 ? task2Progress + 1 : 10;
     // final int totalTickets = task1Progress + task2Progress;
 
@@ -969,6 +970,40 @@ $shareLink
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
+                              const Spacer(),
+                              // Квадратная кнопка "Играть" с мемоджи слотов
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => const GiveawayCasinoScreen(),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFF6EC7),
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFFFF6EC7).withOpacity(0.4),
+                                        blurRadius: 8,
+                                        spreadRadius: 2,
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Center(
+                                    child: Text(
+                                      '🎰',
+                                      style: TextStyle(
+                                        fontSize: 28,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
 
                             ],
                           ),
@@ -1026,6 +1061,45 @@ $shareLink
                             counterColor: friendsCounterColor,
                             onCheckTap: null,
                             isChecking: false,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Кнопки казино
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: GradientButton(
+                              text: '🎰 Крутить слоты',
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const GiveawayCasinoScreen(),
+                                  ),
+                                );
+                              },
+                              enabled: true,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: GradientButton(
+                              text: '🎁 Призы',
+                              onTap: () {
+                                // Показываем информацию о призах
+                                TelegramWebAppService.showAlert(
+                                  '🎁 Призы за победу в казино:\n\n'
+                                  '🥇 1 место: 20 000 ₽ Золотое яблоко\n'
+                                  '🥈 2 место: 10 000 ₽ Серебряное яблоко\n'
+                                  '🥉 3 место: 5 000 ₽ Бронзовое яблоко\n\n'
+                                  'Крутите слоты, чтобы получить билеты!'
+                                );
+                              },
+                              enabled: true,
+                            ),
                           ),
                         ],
                       ),

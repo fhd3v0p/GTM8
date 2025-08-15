@@ -20,6 +20,13 @@ Future<void> main() async {
   try {
     await dotenv.load(fileName: ".env");
     print('✅ .env file loaded successfully');
+    
+    // Проверяем загруженные переменные
+    print('🔍 Checking loaded environment variables:');
+    print('  SUPABASE_URL: ${dotenv.env['SUPABASE_URL']?.isNotEmpty == true ? "✅ loaded" : "❌ empty"}');
+    print('  SUPABASE_ANON_KEY: ${dotenv.env['SUPABASE_ANON_KEY']?.isNotEmpty == true ? "✅ loaded" : "❌ empty"}');
+    print('  RATING_API_BASE_URL: ${dotenv.env['RATING_API_BASE_URL']?.isNotEmpty == true ? "✅ loaded" : "❌ empty"}');
+    
   } catch (e) {
     print('⚠️ Failed to load .env file: $e');
     // Продолжаем без .env файла

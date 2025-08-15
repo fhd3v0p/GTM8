@@ -2,8 +2,22 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ApiConfig {
   // Environment variables через flutter_dotenv
-  static String get supabaseUrl => dotenv.env['SUPABASE_URL'] ?? '';
-  static String get supabaseAnonKey => dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+  static String get supabaseUrl {
+    final url = dotenv.env['SUPABASE_URL'] ?? '';
+    if (url.isEmpty) {
+      print('⚠️ SUPABASE_URL is empty from dotenv');
+    }
+    return url;
+  }
+  
+  static String get supabaseAnonKey {
+    final key = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+    if (key.isEmpty) {
+      print('⚠️ SUPABASE_ANON_KEY is empty from dotenv');
+    }
+    return key;
+  }
+  
   static String get ratingApiBaseUrl => dotenv.env['RATING_API_BASE_URL'] ?? 'https://api.gtm.baby';
 
   // Supabase Storage Configuration
