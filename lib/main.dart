@@ -7,12 +7,31 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: 'assets/.env');
+  
+  // Безопасная загрузка .env файла
+  try {
+    await dotenv.load(fileName: 'assets/.env');
+    print('✅ Environment variables loaded successfully');
+  } catch (e) {
+    print('⚠️ Could not load .env file: $e');
+    // Продолжаем выполнение без .env
+  }
 
-  await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL']!,
-    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
-  );
+  // Инициализация Supabase с безопасной проверкой
+  final supabaseUrl = dotenv.env['SUPABASE_URL'];
+  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
+  
+  if (supabaseUrl != null && supabaseAnonKey != null) {
+    await Supabase.initialize(
+      url: supabaseUrl,
+      anonKey: supabaseAnonKey,
+    );
+    print('✅ Supabase initialized successfully');
+  } else {
+    print('⚠️ Supabase credentials not found, skipping initialization');
+    print('SUPABASE_URL: ${supabaseUrl != null ? "found" : "missing"}');
+    print('SUPABASE_ANON_KEY: ${supabaseAnonKey != null ? "found" : "missing"}');
+  }
 
   TelegramWebAppService.initializeWebApp();
   TelegramWebAppService.disableVerticalSwipe();
