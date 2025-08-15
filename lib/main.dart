@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'screens/splash_screen.dart';
 import 'screens/giveaway_casino_screen.dart'; // FORCE: Ensure casino screen is included
 import 'services/telegram_webapp_service.dart';
@@ -18,29 +19,32 @@ Future<void> main() async {
   }
 
   // Инициализация Supabase с безопасной проверкой
-  final supabaseUrl = dotenv.env['SUPABASE_URL'];
-  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
-  
-  if (supabaseUrl != null && supabaseAnonKey != null) {
-    await Supabase.initialize(
-      url: supabaseUrl,
-      anonKey: supabaseAnonKey,
-    );
-    print('✅ Supabase initialized successfully');
-  } else {
-    print('⚠️ Supabase credentials not found, skipping initialization');
-    print('SUPABASE_URL: ${supabaseUrl != null ? "found" : "missing"}');
-    print('SUPABASE_ANON_KEY: ${supabaseAnonKey != null ? "found" : "missing"}');
+  try {
+    final supabaseUrl = dotenv.env['SUPABASE_URL'];
+    final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
+    
+    if (supabaseUrl != null && supabaseAnonKey != null && supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
+      await Supabase.initialize(
+        url: supabaseUrl,
+        anonKey: supabaseAnonKey,
+      );
+      print('✅ Supabase initialized successfully');
+    } else {
+      print('⚠️ Supabase credentials not found, skipping initialization');
+      print('SUPABASE_URL: ${supabaseUrl?.isNotEmpty == true ? "found" : "missing"}');
+      print('SUPABASE_ANON_KEY: ${supabaseAnonKey?.isNotEmpty == true ? "found" : "missing"}');
+    }
+  } catch (e) {
+    print('❌ Failed to initialize Supabase: $e');
+    // Продолжаем выполнение без Supabase
   }
 
   TelegramWebAppService.initializeWebApp();
   TelegramWebAppService.disableVerticalSwipe();
 
   // FORCE: Ensure casino screen is compiled into build
-  assert(() {
-    print('Casino screen type: ${GiveawayCasinoScreen}');
-    return true;
-  }());
+  print('🎰 Casino screen type: ${GiveawayCasinoScreen}');
+  print('🎰 Casino screen available: ${GiveawayCasinoScreen != null}');
 
   runApp(const MyApp());
 }
