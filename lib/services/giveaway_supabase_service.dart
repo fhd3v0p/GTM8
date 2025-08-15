@@ -14,23 +14,13 @@ class GiveawaySupabaseService {
   Future<Map<String, dynamic>> getUserStatsQuick(int telegramId) async {
     try {
       if (!ApiConfig.isConfigured) {
-        print('⚠️ [GIVEAWAY] API not configured, returning fallback user stats');
-        return {
-          'total_tickets': 5,
-          'subscription_tickets': 1,
-          'referral_tickets': 2,
-          'referral_code': 'DEMO123'
-        };
+        print('⚠️ [GIVEAWAY] API not configured, returning empty stats');
+        return {};
       }
       return await SupabaseService().getUserStatsFast(telegramId);
     } catch (e) {
       print('❌ [GIVEAWAY] Error in getUserStatsQuick: $e');
-      return {
-        'total_tickets': 5,
-        'subscription_tickets': 1,
-        'referral_tickets': 2,
-        'referral_code': 'DEMO123'
-      };
+      return {};
     }
   }
 
@@ -39,13 +29,13 @@ class GiveawaySupabaseService {
   Future<int> getTotalAllTicketsQuick() async {
     try {
       if (!ApiConfig.isConfigured) {
-        print('⚠️ [GIVEAWAY] API not configured, returning fallback total tickets');
-        return 42; // Fallback значение для локальной разработки
+        print('⚠️ [GIVEAWAY] API not configured, returning 0 total tickets');
+        return 0;
       }
       return await SupabaseService().getTotalAllTicketsFast();
     } catch (e) {
       print('❌ [GIVEAWAY] Error in getTotalAllTicketsQuick: $e');
-      return 42; // Fallback значение
+      return 0;
     }
   }
 

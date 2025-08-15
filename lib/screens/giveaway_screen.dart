@@ -21,7 +21,7 @@ const int kGiveawayResultsDemoDelaySec = 10;
 // Показать кнопку DEBUG на экране гивевея
 const bool kShowGiveawayDebugButton = false;
 // DEBUG-фоллбек отключён: используем только ID из плагина Telegram WebApp
-const bool kUseDebugTelegramIdForX = true; // Включено для локальной разработки
+const bool kUseDebugTelegramIdForX = false; // Используем только реальный Telegram ID
 const String kDebugTelegramUserId = '5237968922';
 
 class GiveawayScreen extends StatefulWidget {
