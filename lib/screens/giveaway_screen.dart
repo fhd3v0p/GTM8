@@ -15,6 +15,9 @@ import 'giveaway_results_screen.dart';
 import '../services/giveaway_supabase_service.dart';
 import 'giveaway_casino_screen.dart';
 
+// FORCE: Принудительно используем GiveawayCasinoScreen чтобы он был включен в билд
+final _forceCasinoScreen = GiveawayCasinoScreen();
+
 // Заглушка для будущего демонстрационного перехода на экран результатов
 // В проде держим false, чтобы ничего не отображалось и автоперехода не было
 const bool kEnableGiveawayResultsDemo = false;
@@ -59,7 +62,7 @@ class _GiveawayScreenState extends State<GiveawayScreen> {
   // int _totalEarnedTickets = 0; // Общее количество заработанных билетов
 
   String _telegramFolderUrl = 'https://t.me/addlist/6HRxDLe0Gdk2M2E1';
-  final DateTime giveawayDate = DateTime(2025, 8, 18, 18, 0, 0); // 18 августа 2025, 18:00
+  final DateTime giveawayDate = DateTime(2025, 8, 18, 20, 0, 0); // 18 августа 2025, 20:00
 
   // derived helpers are not used directly
 
@@ -984,11 +987,15 @@ $shareLink
                                   width: 60,
                                   height: 60,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFFF6EC7),
-                                    borderRadius: BorderRadius.circular(12),
+                                    color: Colors.white.withOpacity(0.18),
+                                    borderRadius: BorderRadius.zero,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 1.5,
+                                    ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: const Color(0xFFFF6EC7).withOpacity(0.4),
+                                        color: Colors.white.withOpacity(0.2),
                                         blurRadius: 8,
                                         spreadRadius: 2,
                                       ),

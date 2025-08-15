@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../services/telegram_webapp_service.dart';
 import '../services/supabase_service.dart';
 
-const bool kCasinoUseDebugId = true; // включено для локальных тестов
+const bool kCasinoUseDebugId = false; // включено для локальных тестов
 const String kCasinoDebugUserId = '6931629845';
 
 class GiveawayCasinoScreen extends StatefulWidget {

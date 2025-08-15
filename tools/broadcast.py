@@ -14,6 +14,10 @@ Usage examples:
   # Photo from local file
   python3 tools/broadcast.py --photo-file ./banner.jpg --text "<b>Жми</b>" --parse-mode HTML
 
+  # Multiple photos with caption (NEW!)
+  python3 tools/broadcast.py --photos ./img1.jpg,./img2.jpg,./img3.jpg --text "3 фото с текстом" \
+      --parse-mode HTML --dry
+
   # Limit or resume
   python3 tools/broadcast.py --text "Только 100 юзеров" --limit 100
   python3 tools/broadcast.py --text "Продолжение" --start-from 100
@@ -231,6 +235,69 @@ def tg_send_photo(chat_id: int, photo_url: Optional[str], photo_file: Optional[P
     return False, f"{r.status_code}:{body}"
 
 
+def tg_send_media_group(chat_id: int, photo_files: List[Path], caption: Optional[str], parse_mode: Optional[str]) -> Tuple[bool, str]:
+    """Send multiple photos as a media group with optional caption."""
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMediaGroup"
+    
+    # Prepare media array
+    media = []
+    for i, photo_file in enumerate(photo_files):
+        if not photo_file.exists():
+            return False, f"photo_file_not_found:{photo_file}"
+        
+        media_item = {
+            "type": "photo",
+            "media": f"attach://photo_{i}"
+        }
+        
+        # Add caption only to the first photo
+        if i == 0 and caption:
+            media_item["caption"] = caption
+            if parse_mode:
+                media_item["parse_mode"] = parse_mode
+        
+        media.append(media_item)
+    
+    # Prepare files for upload
+    files = {}
+    for i, photo_file in enumerate(photo_files):
+        files[f"photo_{i}"] = open(photo_file, "rb")
+    
+    try:
+        payload = {
+            "chat_id": chat_id,
+            "media": json.dumps(media)
+        }
+        
+        r = requests.post(url, data=payload, files=files, timeout=60)
+        
+        # Close all file handles
+        for f in files.values():
+            f.close()
+            
+    except requests.RequestException as e:
+        # Close all file handles on error
+        for f in files.values():
+            f.close()
+        return False, f"request_exception:{type(e).__name__}:{str(e)}"
+    
+    if r.status_code == 429:
+        try:
+            retry = int((r.json() or {}).get("parameters", {}).get("retry_after", 1))
+        except Exception:
+            retry = 1
+        return False, f"rate_limited:{retry}"
+    
+    if 200 <= r.status_code < 300:
+        return True, "ok"
+    
+    try:
+        body = r.json()
+    except Exception:
+        body = {"text": r.text}
+    return False, f"{r.status_code}:{body}"
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Broadcast to all users from Supabase users table")
     ap.add_argument("--text", default="", help="Text message (or photo caption if photo provided)")
@@ -240,6 +307,7 @@ def main() -> None:
     ap.add_argument("--disable-preview", action="store_true", help="Disable link preview for text messages")
     ap.add_argument("--photo-url", default=None, help="Photo URL to send")
     ap.add_argument("--photo-file", default=None, help="Local photo file path to send")
+    ap.add_argument("--photos", default=None, help="Comma-separated list of local photo files to send as media group")
     ap.add_argument("--start-from", type=int, default=0, help="Offset in users list")
     ap.add_argument("--limit", type=int, default=None, help="Max users to send to")
     ap.add_argument("--sleep", type=float, default=None, help="Sleep between requests (seconds). If omitted, you will be prompted (default 0.3s)")
@@ -263,9 +331,26 @@ def main() -> None:
     if not (SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY):
         raise SystemExit("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required")
 
+    # Handle photo files
     photo_path = Path(args.photo_file).resolve() if args.photo_file else None
-    if photo_path and not photo_path.exists():
-        raise SystemExit(f"Photo file not found: {photo_path}")
+    photo_files: List[Path] = []
+    
+    if args.photos:
+        # Parse comma-separated photo files
+        photo_paths = [p.strip() for p in args.photos.split(",") if p.strip()]
+        photo_files = [Path(p).resolve() for p in photo_paths]
+        
+        # Validate all photo files exist
+        for photo_file in photo_files:
+            if not photo_file.exists():
+                raise SystemExit(f"Photo file not found: {photo_file}")
+        
+        print(f"Found {len(photo_files)} photo files: {[p.name for p in photo_files]}")
+    
+    elif photo_path:
+        if not photo_path.exists():
+            raise SystemExit(f"Photo file not found: {photo_path}")
+        photo_files = [photo_path]
 
     # Resolve message text from template if not provided
     if (not args.text) and args.template:
@@ -295,6 +380,8 @@ def main() -> None:
         "parse_mode": args.parse_mode,
         "photo_url": bool(args.photo_url),
         "photo_file": bool(photo_path),
+        "photos_count": len(photo_files),
+        "photos": [p.name for p in photo_files] if photo_files else None,
     }
     print(json.dumps({"broadcast": summary}, ensure_ascii=False))
     if total == 0:
@@ -319,11 +406,28 @@ def main() -> None:
                 test_text = (args.text or "").replace("{first_name}", first_name).replace("{username}", username)
                 ok = False
                 detail = ""
-                if photo_path or args.photo_url:
+                
+                if photo_files:
+                    if len(photo_files) > 1:
+                        ok, detail = tg_send_media_group(
+                            chat_id=test_id,
+                            photo_files=photo_files,
+                            caption=(test_text or None),
+                            parse_mode=args.parse_mode,
+                        )
+                    else:
+                        ok, detail = tg_send_photo(
+                            chat_id=test_id,
+                            photo_url=args.photo_url,
+                            photo_file=photo_files[0],
+                            caption=(test_text or None),
+                            parse_mode=args.parse_mode,
+                        )
+                elif args.photo_url:
                     ok, detail = tg_send_photo(
                         chat_id=test_id,
                         photo_url=args.photo_url,
-                        photo_file=photo_path,
+                        photo_file=None,
                         caption=(test_text or None),
                         parse_mode=args.parse_mode,
                     )
@@ -394,11 +498,27 @@ def main() -> None:
             else:
                 try:
                     ok = False
-                    if photo_path or args.photo_url:
+                    if photo_files:
+                        if len(photo_files) > 1:
+                            ok, detail = tg_send_media_group(
+                                chat_id=uid,
+                                photo_files=photo_files,
+                                caption=(text or None),
+                                parse_mode=args.parse_mode,
+                            )
+                        else:
+                            ok, detail = tg_send_photo(
+                                chat_id=uid,
+                                photo_url=args.photo_url,
+                                photo_file=photo_files[0],
+                                caption=(text or None),
+                                parse_mode=args.parse_mode,
+                            )
+                    elif args.photo_url:
                         ok, detail = tg_send_photo(
                             chat_id=uid,
                             photo_url=args.photo_url,
-                            photo_file=photo_path,
+                            photo_file=None,
                             caption=(text or None),
                             parse_mode=args.parse_mode,
                         )

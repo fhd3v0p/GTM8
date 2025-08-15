@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GTM8 Test Page - Статик обновлен!</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 600px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+        }
+        .timestamp {
+            background: #f0f0f0;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 1.2em;
+        }
+        .status {
+            color: #28a745;
+            font-weight: bold;
+            font-size: 1.3em;
+            margin: 20px 0;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #2196f3;
+        }
+        .button {
+            background: #ff6ec7;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        .button:hover {
+            background: #e91e63;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎉 GTM8 Test Page</h1>
+        
+        <div class="status">
+            ✅ Статические файлы успешно обновлены!
+        </div>
+        
+        <div class="timestamp">
+            <strong>Время последнего обновления:</strong><br>
+            <span id="currentTime"></span>
+        </div>
+        
+        <div class="info">
+            <strong>Информация:</strong><br>
+            • Версия: 1.0.1+2<br>
+            • Кнопка казино обновлена<br>
+            • Белый полупрозрачный квадрат с острыми углами<br>
+            • Тонкая белая рамка 1.5px
+        </div>
+        
+        <div>
+            <button class="button" onclick="refreshPage()">🔄 Обновить страницу</button>
+            <button class="button" onclick="showTime()">⏰ Показать время</button>
+        </div>
+        
+        <div style="margin-top: 30px; font-size: 0.9em; color: #666;">
+            Если вы видите это сообщение, значит статические файлы на сервере успешно обновлены!
+        </div>
+    </div>
+
+    <script>
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleString('ru-RU', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            document.getElementById('currentTime').textContent = timeString;
+        }
+        
+        function refreshPage() {
+            location.reload();
+        }
+        
+        function showTime() {
+            updateTime();
+            alert('Время обновлено!');
+        }
+        
+        // Обновляем время каждую секунду
+        updateTime();
+        setInterval(updateTime, 1000);
+        
+        // Показываем время загрузки страницы
+        console.log('GTM8 Test Page загружен в:', new Date().toLocaleString('ru-RU'));
+    </script>
+</body>
+</html> 
