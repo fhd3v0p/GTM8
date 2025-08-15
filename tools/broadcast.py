@@ -308,6 +308,7 @@ def main() -> None:
     ap.add_argument("--photo-url", default=None, help="Photo URL to send")
     ap.add_argument("--photo-file", default=None, help="Local photo file path to send")
     ap.add_argument("--photos", default=None, help="Comma-separated list of local photo files to send as media group")
+    ap.add_argument("--user-id", type=int, default=None, help="Send message to specific user by telegram_id")
     ap.add_argument("--start-from", type=int, default=0, help="Offset in users list")
     ap.add_argument("--limit", type=int, default=None, help="Max users to send to")
     ap.add_argument("--sleep", type=float, default=None, help="Sleep between requests (seconds). If omitted, you will be prompted (default 0.3s)")
@@ -355,6 +356,66 @@ def main() -> None:
     # Resolve message text from template if not provided
     if (not args.text) and args.template:
         args.text = TEMPLATES[args.template]
+
+    # Handle single user send
+    if args.user_id:
+        print(f"🎯 Sending to specific user: {args.user_id}")
+        prof = fetch_user_profile(args.user_id)
+        if not prof:
+            raise SystemExit(f"User {args.user_id} not found in database")
+        
+        first_name = (prof.get("first_name") or "").strip()
+        username = (prof.get("username") or "").strip()
+        text = (args.text or "").replace("{first_name}", first_name).replace("{username}", username)
+        
+        print(f"📤 Sending to: {first_name} (@{username}) [ID: {args.user_id}]")
+        print(f"📝 Text: {text[:100]}{'...' if len(text) > 100 else ''}")
+        
+        if not args.dry:
+            ok = False
+            detail = ""
+            
+            if photo_files:
+                if len(photo_files) > 1:
+                    ok, detail = tg_send_media_group(
+                        chat_id=args.user_id,
+                        photo_files=photo_files,
+                        caption=(text or None),
+                        parse_mode=args.parse_mode,
+                    )
+                else:
+                    ok, detail = tg_send_photo(
+                        chat_id=args.user_id,
+                        photo_url=args.photo_url,
+                        photo_file=photo_files[0],
+                        caption=(text or None),
+                        parse_mode=args.parse_mode,
+                    )
+            elif args.photo_url:
+                ok, detail = tg_send_photo(
+                    chat_id=args.user_id,
+                    photo_url=args.photo_url,
+                    photo_file=None,
+                    caption=(text or None),
+                    parse_mode=args.parse_mode,
+                )
+            else:
+                ok, detail = tg_send_message(
+                    chat_id=args.user_id,
+                    text=text,
+                    parse_mode=args.parse_mode,
+                    disable_preview=args.disable_preview,
+                )
+            
+            if ok:
+                print(f"✅ Message sent successfully to {args.user_id}")
+            else:
+                print(f"❌ Failed to send message: {detail}")
+                raise SystemExit(1)
+        else:
+            print("🔍 DRY RUN - message would be sent")
+        
+        return
 
     users = fetch_all_users(start_from=args.start_from, limit=args.limit)
     total = len(users)
