@@ -22,6 +22,9 @@ rm -rf web_local/*
 echo "📋 Копирую новый билд в web_local..."
 cp -r build/web/* web_local/
 
+echo "🔧 Копирую .env файл для production..."
+cp assets/.env web_local/assets/assets/.env
+
 # 4. Отправить на сервер через SCP
 echo "🌐 Отправляю web_local на сервер $SERVER..."
 scp -r web_local/ $USER@$SERVER:$REMOTE_PATH

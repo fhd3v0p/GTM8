@@ -18,6 +18,9 @@ rm -rf web_local/*
 echo "📋 Копирую новый билд в web_local..."
 cp -r build/web/* web_local/
 
+echo "🔧 Копирую .env файл для production..."
+cp assets/.env web_local/assets/assets/.env
+
 # 4. Проверить, запущен ли Docker
 echo "🐳 Проверяю состояние Docker контейнеров..."
 if docker ps | grep -q "gtm_nginx"; then
