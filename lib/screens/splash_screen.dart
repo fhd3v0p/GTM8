@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'welcome_screen.dart';
 import '../services/telegram_webapp_service.dart';
 import 'dart:math';
@@ -165,16 +166,35 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _expandTelegramWebApp();
+    print('🔍 SplashScreen initState started');
+    
+    try {
+      _expandTelegramWebApp();
+      print('✅ Telegram WebApp expansion completed');
+    } catch (e) {
+      print('⚠️ Telegram WebApp expansion failed: $e');
+    }
+    
     // Авто‑переход через 2.5 сек
     Future.delayed(const Duration(milliseconds: 2500), () {
-      if (mounted && !_navigated) _navigateToWelcome();
+      print('🔍 Auto-navigation timer triggered');
+      if (mounted && !_navigated) {
+        print('🔍 Attempting auto-navigation to WelcomeScreen');
+        _navigateToWelcome();
+      } else {
+        print('🔍 Auto-navigation skipped (mounted: $mounted, navigated: $_navigated)');
+      }
     });
+    
     // Дублируем expand после построения первого кадра
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      print('🔍 Post-frame callback triggered');
       try {
         TelegramWebAppService.expand();
-      } catch (_) {}
+        print('✅ Post-frame WebApp expansion completed');
+      } catch (e) {
+        print('⚠️ Post-frame WebApp expansion failed: $e');
+      }
     });
   }
 
@@ -217,6 +237,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    print('🔍 SplashScreen build method called');
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -228,7 +249,10 @@ class _SplashScreenState extends State<SplashScreen> {
             top: MediaQuery.of(context).size.height * 0.10, // 10% от экрана (было 20%)
             right: 16,
             child: GestureDetector(
-              onTap: _navigateToWelcome,
+              onTap: () {
+                print('🔍 Skip button tapped');
+                _navigateToWelcome();
+              },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
@@ -246,6 +270,41 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             ),
           ),
+          
+          // Аварийная кнопка для дебаггинга
+          if (kIsWeb)
+            Positioned(
+              top: MediaQuery.of(context).size.height * 0.10,
+              left: 16,
+              child: GestureDetector(
+                onTap: () {
+                  print('🔍 Emergency navigation button tapped');
+                  try {
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+                    );
+                    print('✅ Emergency navigation completed');
+                  } catch (e) {
+                    print('❌ Emergency navigation failed: $e');
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Emergency',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontFamily: 'NauryzKeds',
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

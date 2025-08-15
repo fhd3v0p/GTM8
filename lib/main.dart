@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'screens/splash_screen.dart';
 import 'screens/giveaway_casino_screen.dart'; // FORCE: Ensure casino screen is included
 import 'services/telegram_webapp_service.dart';
@@ -36,12 +35,18 @@ Future<void> main() async {
     // Продолжаем выполнение без Supabase
   }
 
-  TelegramWebAppService.initializeWebApp();
-  TelegramWebAppService.disableVerticalSwipe();
+  // Безопасная инициализация Telegram WebApp
+  try {
+    TelegramWebAppService.initializeWebApp();
+    TelegramWebAppService.disableVerticalSwipe();
+    print('✅ Telegram WebApp initialized successfully');
+  } catch (e) {
+    print('⚠️ Failed to initialize Telegram WebApp: $e');
+    // Продолжаем работу без WebApp функций
+  }
 
   // FORCE: Ensure casino screen is compiled into build
   print('🎰 Casino screen type: ${GiveawayCasinoScreen}');
-  print('🎰 Casino screen available: ${GiveawayCasinoScreen != null}');
 
   runApp(const MyApp());
 }
