@@ -26,14 +26,20 @@ class _OrbitingAvatarsLoaderState extends State<OrbitingAvatarsLoader> with Tick
   @override
   void initState() {
     super.initState();
+    print('🔍 OrbitingAvatarsLoader initState started');
+    
     _pulseController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
     )..repeat(reverse: true);
+    print('✅ Animation controller initialized');
     _pulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+    print('✅ Pulse animation configured');
+    
     _startOrbitAnimation();
+    print('✅ Orbit animation started');
   }
   void _startOrbitAnimation() {
     const double baseSpeed = 0.012;
@@ -73,6 +79,7 @@ class _OrbitingAvatarsLoaderState extends State<OrbitingAvatarsLoader> with Tick
   }
   @override
   Widget build(BuildContext context) {
+    print('🔍 OrbitingAvatarsLoader build called');
     return Center(
       child: SizedBox(
         width: 320,
@@ -239,6 +246,8 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     print('🔍 SplashScreen build method called');
+    print('🔍 Screen size: ${MediaQuery.of(context).size}');
+    print('🔍 Building splash screen widgets...');
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -272,75 +281,7 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
           ),
           
-          // Аварийная кнопка для дебаггинга
-          if (kIsWeb)
-            Positioned(
-              top: MediaQuery.of(context).size.height * 0.10,
-              left: 16,
-              child: GestureDetector(
-                onTap: () {
-                  print('🔍 Emergency navigation button tapped');
-                  try {
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-                    );
-                    print('✅ Emergency navigation completed');
-                  } catch (e) {
-                    print('❌ Emergency navigation failed: $e');
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    'Emergency',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontFamily: 'NauryzKeds',
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          
-          // Кнопка диагностики environment переменных
-          if (kIsWeb)
-            Positioned(
-              bottom: MediaQuery.of(context).size.height * 0.10,
-              left: 16,
-              child: GestureDetector(
-                onTap: () {
-                  print('🔍 Environment debug button tapped');
-                  try {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const EnvDebugScreen()),
-                    );
-                    print('✅ Environment debug navigation completed');
-                  } catch (e) {
-                    print('❌ Environment debug navigation failed: $e');
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    'ENV Debug',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontFamily: 'NauryzKeds',
-                    ),
-                  ),
-                ),
-              ),
-            ),
+
         ],
       ),
     );

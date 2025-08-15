@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'screens/splash_screen.dart';
 import 'screens/giveaway_casino_screen.dart'; // FORCE: Ensure casino screen is included
 import 'services/telegram_webapp_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {
+  print('🚀 GTM App Starting...');
+  print('🔍 Platform: ${kIsWeb ? 'Web' : 'Mobile'}');
+  print('🔍 Debug mode: ${kDebugMode}');
+  
   WidgetsFlutterBinding.ensureInitialized();
+  print('✅ Flutter binding initialized');
   
   // Получение environment variables через --dart-define (Vercel)
   print('🔍 Loading environment variables...');
@@ -53,7 +59,9 @@ Future<void> main() async {
   // FORCE: Ensure casino screen is compiled into build
   print('🎰 Casino screen type: ${GiveawayCasinoScreen}');
 
+  print('🚀 Starting Flutter app...');
   runApp(const MyApp());
+  print('✅ Flutter app started successfully');
 }
 
 class MyApp extends StatelessWidget {
@@ -61,6 +69,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('🏗️ Building MaterialApp...');
     return MaterialApp(
       title: 'Gotham\'s Top Model',
       debugShowCheckedModeBanner: false,
