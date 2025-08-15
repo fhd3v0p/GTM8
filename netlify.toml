@@ -1,5 +1,20 @@
 [build]
-  command = "flutter build web --release --dart-define=SUPABASE_URL=$SUPABASE_URL --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY --dart-define=WEBAPP_VERSION=$WEBAPP_VERSION && cp build/web/* ./ && cp web/_redirects _redirects"
+  command = """
+    # Install Flutter SDK
+    git clone https://github.com/flutter/flutter.git -b stable --depth 1 flutter
+    export PATH="$PWD/flutter/bin:$PATH"
+    
+    # Configure Flutter for web
+    flutter config --enable-web
+    flutter doctor
+    
+    # Build the app with environment variables
+    flutter build web --release --dart-define=SUPABASE_URL=$SUPABASE_URL --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY --dart-define=WEBAPP_VERSION=$WEBAPP_VERSION
+    
+    # Copy build files to publish directory
+    cp -r build/web/* ./
+    cp web/_redirects _redirects
+  """
   publish = "."
 
 [build.environment]
