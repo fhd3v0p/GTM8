@@ -2,6 +2,9 @@
   "buildCommand": "./build.sh",
   "outputDirectory": "build/web",
   "installCommand": "echo 'Skipping npm install'",
+  "framework": null,
+  "cleanUrls": true,
+  "trailingSlash": false,
   "rewrites": [
     {
       "source": "/(.*)",

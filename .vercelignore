@@ -1,0 +1,38 @@
+# Flutter build artifacts
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env*
+!vercel.json
+
+# Git
+.git/
+.gitignore
+
+# Large assets that might cause function size issues
+assets/fonts/
+assets/artists/*/gallery*.jpg
+assets/artists/*/gallery*.png
+
+# Development
+web_local/
+README*.md
+deploy_*.sh
+watch_*.sh
