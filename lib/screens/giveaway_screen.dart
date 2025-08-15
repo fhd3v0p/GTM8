@@ -971,7 +971,7 @@ $shareLink
                                 ),
                               ),
                               const SizedBox(width: 20),
-                              // Квадратная кнопка "Играть" с мемоджи слотов (белая, 25% прозрачности)
+                              // Квадратная кнопка казино с мемоджи 🎰
                               GestureDetector(
                                 onTap: () {
                                   Navigator.of(context).push(
@@ -984,11 +984,11 @@ $shareLink
                                   width: 60,
                                   height: 60,
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.75), // 25% прозрачности
+                                    color: const Color(0xFFFF6EC7),
                                     borderRadius: BorderRadius.circular(12),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.white.withOpacity(0.3),
+                                        color: const Color(0xFFFF6EC7).withOpacity(0.4),
                                         blurRadius: 8,
                                         spreadRadius: 2,
                                       ),
@@ -1191,7 +1191,7 @@ class _SubscribeFolderCard extends StatelessWidget {
                   CircleAvatar(
                     backgroundColor: const Color(0xFFFF6EC7),
                     radius: 20,
-                    child: const Icon(Icons.folder_special, color: Colors.white),
+                    child: const Icon(Icons.folder_special, color: Colors.white, size: 20),
                   ),
                   const SizedBox(width: 16),
                   Expanded(

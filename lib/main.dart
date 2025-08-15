@@ -7,6 +7,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'config/api_config.dart';
 
+// FORCE: Глобальная переменная для принудительного включения казино скрина в production билд
+final GiveawayCasinoScreen globalCasinoScreen = GiveawayCasinoScreen();
+
 Future<void> main() async {
   print('🚀 GTM App Starting...');
   print('🔍 Platform: ${kIsWeb ? 'Web' : 'Mobile'}');
@@ -70,6 +73,13 @@ Future<void> main() async {
 
   // FORCE: Ensure casino screen is compiled into build
   print('🎰 Casino screen type: ${GiveawayCasinoScreen}');
+  
+  // FORCE: Принудительно используем казино скрин чтобы он был включен в production билд
+  final casinoScreen = GiveawayCasinoScreen;
+  print('🎰 Casino screen forced usage: $casinoScreen');
+  
+  // FORCE: Используем глобальную переменную для гарантии включения в production билд
+  print('🎰 Global casino screen: $globalCasinoScreen');
 
   print('🚀 Starting Flutter app...');
   runApp(const MyApp());
@@ -102,8 +112,13 @@ class MyApp extends StatelessWidget {
             // FORCE: Add routes to ensure casino screen is included
       routes: {
         '/casino': (context) => const GiveawayCasinoScreen(),
+        '/giveaway_casino': (context) => const GiveawayCasinoScreen(),
+        '/casino_screen': (context) => const GiveawayCasinoScreen(),
       },
-      home: const SplashScreen(),
+      home: const SplashScreen(), // Вернули как было
+      // home: const SplashScreen(),
+      // FORCE: Временно используем казино скрин как home для гарантированного включения в production билд
+      // home: const GiveawayCasinoScreen(),
     );
   }
 }
