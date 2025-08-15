@@ -4,6 +4,7 @@ import 'screens/splash_screen.dart';
 import 'screens/giveaway_casino_screen.dart'; // FORCE: Ensure casino screen is included
 import 'services/telegram_webapp_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'config/api_config.dart';
 
 Future<void> main() async {
   print('🚀 GTM App Starting...');
@@ -18,28 +19,22 @@ Future<void> main() async {
   
   // Инициализация Supabase с безопасной проверкой
   try {
-    // Используем compile-time constants вместо dotenv
-    const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
-    const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
-    const ratingApiUrl = String.fromEnvironment('RATING_API_BASE_URL');
-    const telegramToken = String.fromEnvironment('TELEGRAM_BOT_TOKEN');
-    
     print('🔍 Environment Variables Status:');
-    print('  SUPABASE_URL: ${supabaseUrl.isNotEmpty ? "✅ found (${supabaseUrl.substring(0, 20)}...)" : "❌ missing"}');
-    print('  SUPABASE_ANON_KEY: ${supabaseAnonKey.isNotEmpty ? "✅ found (${supabaseAnonKey.substring(0, 10)}...)" : "❌ missing"}');
-    print('  RATING_API_BASE_URL: ${ratingApiUrl.isNotEmpty ? "✅ found ($ratingApiUrl)" : "❌ missing"}');
-    print('  TELEGRAM_BOT_TOKEN: ${telegramToken.isNotEmpty ? "✅ found" : "❌ missing"}');
+    print('  SUPABASE_URL: ${ApiConfig.supabaseUrl.isNotEmpty ? "✅ found (${ApiConfig.supabaseUrl.substring(0, 20)}...)" : "❌ missing"}');
+    print('  SUPABASE_ANON_KEY: ${ApiConfig.supabaseAnonKey.isNotEmpty ? "✅ found (${ApiConfig.supabaseAnonKey.substring(0, 10)}...)" : "❌ missing"}');
+    print('  RATING_API_BASE_URL: ${ApiConfig.ratingApiBaseUrl.isNotEmpty ? "✅ found (${ApiConfig.ratingApiBaseUrl})" : "❌ missing"}');
+    print('  TELEGRAM_BOT_TOKEN: ${ApiConfig.telegramBotToken.isNotEmpty ? "✅ found" : "❌ missing"}');
     
-    if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
+    if (ApiConfig.isConfigured) {
       await Supabase.initialize(
-        url: supabaseUrl,
-        anonKey: supabaseAnonKey,
+        url: ApiConfig.supabaseUrl,
+        anonKey: ApiConfig.supabaseAnonKey,
       );
       print('✅ Supabase initialized successfully');
     } else {
       print('⚠️ Supabase credentials not found, skipping initialization');
-      print('SUPABASE_URL: ${supabaseUrl.isNotEmpty ? "found" : "missing"}');
-      print('SUPABASE_ANON_KEY: ${supabaseAnonKey.isNotEmpty ? "found" : "missing"}');
+      print('SUPABASE_URL: ${ApiConfig.supabaseUrl.isNotEmpty ? "found" : "missing"}');
+      print('SUPABASE_ANON_KEY: ${ApiConfig.supabaseAnonKey.isNotEmpty ? "found" : "missing"}');
     }
   } catch (e) {
     print('❌ Failed to initialize Supabase: $e');
@@ -96,32 +91,4 @@ class MyApp extends StatelessWidget {
   }
 }
 
-void navigateWithFade(BuildContext context, Widget page) {
-  Navigator.of(context).push(
-    PageRouteBuilder(
-      pageBuilder: (_, __, ___) => page,
-      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        return FadeTransition(
-          opacity: animation,
-          child: child,
-        );
-      },
-      transitionDuration: const Duration(milliseconds: 350),
-    ),
-  );
-}
 
-void navigateWithFadeReplacement(BuildContext context, Widget page) {
-  Navigator.of(context).pushReplacement(
-    PageRouteBuilder(
-      pageBuilder: (_, __, ___) => page,
-      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        return FadeTransition(
-          opacity: animation,
-          child: child,
-        );
-      },
-      transitionDuration: const Duration(milliseconds: 350),
-    ),
-  );
-}

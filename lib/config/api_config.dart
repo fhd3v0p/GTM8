@@ -5,7 +5,7 @@ class ApiConfig {
   static const String ratingApiBaseUrl = String.fromEnvironment('RATING_API_BASE_URL', defaultValue: 'https://api.gtm.baby');
 
   // Supabase Storage Configuration
-  static const String storageBucket = 'gtm-assets-public';
+  static const String storageBucket = String.fromEnvironment('SUPABASE_STORAGE_BUCKET', defaultValue: 'gtm-assets-public');
   // AI uploads (private bucket)
   static const String aiUploadsBucket = String.fromEnvironment('SUPABASE_AI_BUCKET', defaultValue: 'gtm-ai-uploads');
   static const String aiUploadsFolder = String.fromEnvironment('SUPABASE_AI_FOLDER', defaultValue: 'img');

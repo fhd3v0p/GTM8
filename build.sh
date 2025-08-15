@@ -35,11 +35,12 @@ fi
 flutter build web --release \
   --dart-define=SUPABASE_URL="${SUPABASE_URL:-}" \
   --dart-define=SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}" \
-  --dart-define=WEBAPP_VERSION="${WEBAPP_VERSION:-1.0.0}" \
+  --dart-define=SUPABASE_STORAGE_BUCKET="${SUPABASE_STORAGE_BUCKET:-gtm-assets-public}" \
   --dart-define=RATING_API_BASE_URL="${RATING_API_BASE_URL:-https://api.gtm.baby}" \
   --dart-define=SUPABASE_AI_BUCKET="${SUPABASE_AI_BUCKET:-gtm-ai-uploads}" \
   --dart-define=SUPABASE_AI_FOLDER="${SUPABASE_AI_FOLDER:-img}" \
-  --dart-define=TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
+  --dart-define=TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}" \
+  --dart-define=WEBAPP_VERSION="${WEBAPP_VERSION:-1.0.9}"
 
 echo "✅ Build completed successfully!"
 echo "📊 Build size:"
