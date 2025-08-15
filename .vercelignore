@@ -26,8 +26,9 @@ Thumbs.db
 .git/
 .gitignore
 
-# Large assets that might cause function size issues
-assets/fonts/
+# Large assets that might cause function size issues  
+# НЕ исключаем основные шрифты - они нужны для компиляции!
+# assets/fonts/ - УБРАЛИ, шрифты нужны!
 assets/artists/*/gallery*.jpg
 assets/artists/*/gallery*.png
 
