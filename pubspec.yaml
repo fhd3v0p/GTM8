@@ -19,7 +19,6 @@ dependencies:
   slide_to_act: ^2.0.0
   url_launcher: ^6.2.1
   crypto: ^3.0.3
-  flutter_dotenv: ^5.1.0
   supabase_flutter: ^2.5.6
   telegram_web_app: ^0.3.3
 
@@ -35,8 +34,6 @@ flutter:
     - assets/
     - assets/artists/
     - assets/fonts/
-    - assets/.env
-    - .env
   
   fonts:
     - family: Lepka

@@ -1,6 +1,6 @@
 [build]
-  command = "cp web/_redirects web_local/_redirects"
-  publish = "web_local"
+  command = "flutter build web --release --dart-define=SUPABASE_URL=$SUPABASE_URL --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY --dart-define=WEBAPP_VERSION=$WEBAPP_VERSION && cp build/web/* ./ && cp web/_redirects _redirects"
+  publish = "."
 
 [build.environment]
   FLUTTER_WEB = "true"

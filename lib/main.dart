@@ -3,27 +3,24 @@ import 'package:flutter/foundation.dart';
 import 'screens/splash_screen.dart';
 import 'screens/giveaway_casino_screen.dart'; // FORCE: Ensure casino screen is included
 import 'services/telegram_webapp_service.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Безопасная загрузка .env файла
-  try {
-    await dotenv.load(fileName: 'assets/.env');
-    print('✅ Environment variables loaded successfully');
-  } catch (e) {
-    print('⚠️ Could not load .env file: $e');
-    // Продолжаем выполнение без .env
-  }
-
+  // Получение environment variables через --dart-define (Netlify)
+  print('🔍 Loading environment variables...');
+  
   // Инициализация Supabase с безопасной проверкой
   try {
-    final supabaseUrl = dotenv.env['SUPABASE_URL'];
-    final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
+    // Используем compile-time constants вместо dotenv
+    const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+    const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
     
-    if (supabaseUrl != null && supabaseAnonKey != null && supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
+    print('🔍 SUPABASE_URL: ${supabaseUrl.isNotEmpty ? "found" : "missing"}');
+    print('🔍 SUPABASE_ANON_KEY: ${supabaseAnonKey.isNotEmpty ? "found" : "missing"}');
+    
+    if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
       await Supabase.initialize(
         url: supabaseUrl,
         anonKey: supabaseAnonKey,
@@ -31,8 +28,8 @@ Future<void> main() async {
       print('✅ Supabase initialized successfully');
     } else {
       print('⚠️ Supabase credentials not found, skipping initialization');
-      print('SUPABASE_URL: ${supabaseUrl?.isNotEmpty == true ? "found" : "missing"}');
-      print('SUPABASE_ANON_KEY: ${supabaseAnonKey?.isNotEmpty == true ? "found" : "missing"}');
+      print('SUPABASE_URL: ${supabaseUrl.isNotEmpty ? "found" : "missing"}');
+      print('SUPABASE_ANON_KEY: ${supabaseAnonKey.isNotEmpty ? "found" : "missing"}');
     }
   } catch (e) {
     print('❌ Failed to initialize Supabase: $e');
