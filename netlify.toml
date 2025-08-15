@@ -12,7 +12,7 @@
     flutter build web --release --dart-define=SUPABASE_URL=$SUPABASE_URL --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY --dart-define=WEBAPP_VERSION=$WEBAPP_VERSION --dart-define=RATING_API_BASE_URL=$RATING_API_BASE_URL --dart-define=SUPABASE_AI_BUCKET=$SUPABASE_AI_BUCKET --dart-define=SUPABASE_AI_FOLDER=$SUPABASE_AI_FOLDER --dart-define=TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
     
     # Copy build files to publish directory
-    cp -r build/web/* ./
+    cp -r build/web/. ./
     cp web/_redirects _redirects
   """
   publish = "."
