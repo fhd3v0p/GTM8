@@ -1,4 +1,7 @@
 {
+  "buildCommand": "./build.sh",
+  "outputDirectory": "build/web",
+  "installCommand": "echo 'Skipping npm install'",
   "rewrites": [
     {
       "source": "/(.*)",
@@ -42,6 +45,24 @@
     },
     {
       "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/(main\\.dart\\.js|flutter\\.js|flutter_bootstrap\\.js)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400"
+        }
+      ]
+    },
+    {
+      "source": "/canvaskit/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
