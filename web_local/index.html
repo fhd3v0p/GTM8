@@ -30,18 +30,51 @@
       height: 100%;
       height: 100vh;
       height: 100dvh;
-      background: #000;
+      background: #ffffff;
     }
     /* Блокируем осевой скролл и эластичное перетягивание */
-    body { background: #000; overflow-x: hidden; }
+    body { background: #ffffff; overflow-x: hidden; }
     html, body { overscroll-behavior-y: contain; height: -webkit-fill-available; min-height: 100%; }
     html { overflow: hidden; }
     body::-webkit-scrollbar { display: none; }
     #flutter_container { position: fixed; inset: 0; }
+    
+    /* Loading indicator */
+    .loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: Arial, sans-serif;
+      font-size: 18px;
+      color: #333;
+      text-align: center;
+      z-index: 1000;
+    }
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 2s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .loading.hide { display: none; }
   </style>
 </head>
 <body>
   <div id="flutter_container"></div>
+  
+  <!-- Loading indicator -->
+  <div id="loading" class="loading">
+    <div class="spinner"></div>
+    <div>Загружаем GTM...</div>
+  </div>
 
   <script>
     (function () {
@@ -89,44 +122,28 @@
   <!-- Версионированные загрузчики Flutter (пробивают кэш Telegram/WebView) -->
   <script src="flutter.js?v=FORCE_20250815_3" defer></script>
   <script src="flutter_bootstrap.js?v=FORCE_20250815_3" defer></script>
-</body>
-</html>
-
-<!DOCTYPE html>
-<html>
-<head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
-  <base href="/">
-
-  <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
-
-  <!-- iOS meta tags & icons -->
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="gtm_app">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
-
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>gtm_app</title>
-  <link rel="manifest" href="manifest.json">
-</head>
-<body>
-  <script src="flutter_bootstrap.js" async></script>
+  
+  <!-- Hide loading indicator when Flutter loads -->
+  <script>
+    // Hide loading when Flutter is ready
+    window.addEventListener('flutter-first-frame', function() {
+      var loading = document.getElementById('loading');
+      if (loading) loading.classList.add('hide');
+    });
+    
+    // Fallback to hide loading after timeout
+    setTimeout(function() {
+      var loading = document.getElementById('loading');
+      if (loading) loading.classList.add('hide');
+    }, 8000);
+    
+    // Also hide when page is fully loaded
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        var loading = document.getElementById('loading');
+        if (loading) loading.classList.add('hide');
+      }, 3000);
+    });
+  </script>
 </body>
 </html>
