@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'welcome_screen.dart';
+import 'env_debug_screen.dart';
 import '../services/telegram_webapp_service.dart';
 import 'dart:math';
 
@@ -296,6 +297,41 @@ class _SplashScreenState extends State<SplashScreen> {
                   ),
                   child: const Text(
                     'Emergency',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontFamily: 'NauryzKeds',
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          
+          // Кнопка диагностики environment переменных
+          if (kIsWeb)
+            Positioned(
+              bottom: MediaQuery.of(context).size.height * 0.10,
+              left: 16,
+              child: GestureDetector(
+                onTap: () {
+                  print('🔍 Environment debug button tapped');
+                  try {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const EnvDebugScreen()),
+                    );
+                    print('✅ Environment debug navigation completed');
+                  } catch (e) {
+                    print('❌ Environment debug navigation failed: $e');
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'ENV Debug',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 14,

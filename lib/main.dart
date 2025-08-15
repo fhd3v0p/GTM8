@@ -7,7 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Получение environment variables через --dart-define (Netlify)
+  // Получение environment variables через --dart-define (Vercel)
   print('🔍 Loading environment variables...');
   
   // Инициализация Supabase с безопасной проверкой
@@ -15,9 +15,14 @@ Future<void> main() async {
     // Используем compile-time constants вместо dotenv
     const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
     const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+    const ratingApiUrl = String.fromEnvironment('RATING_API_BASE_URL');
+    const telegramToken = String.fromEnvironment('TELEGRAM_BOT_TOKEN');
     
-    print('🔍 SUPABASE_URL: ${supabaseUrl.isNotEmpty ? "found" : "missing"}');
-    print('🔍 SUPABASE_ANON_KEY: ${supabaseAnonKey.isNotEmpty ? "found" : "missing"}');
+    print('🔍 Environment Variables Status:');
+    print('  SUPABASE_URL: ${supabaseUrl.isNotEmpty ? "✅ found (${supabaseUrl.substring(0, 20)}...)" : "❌ missing"}');
+    print('  SUPABASE_ANON_KEY: ${supabaseAnonKey.isNotEmpty ? "✅ found (${supabaseAnonKey.substring(0, 10)}...)" : "❌ missing"}');
+    print('  RATING_API_BASE_URL: ${ratingApiUrl.isNotEmpty ? "✅ found ($ratingApiUrl)" : "❌ missing"}');
+    print('  TELEGRAM_BOT_TOKEN: ${telegramToken.isNotEmpty ? "✅ found" : "❌ missing"}');
     
     if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
       await Supabase.initialize(
