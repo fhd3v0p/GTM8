@@ -119,6 +119,162 @@ def _build_prize(place_number: int) -> Dict[str, str]:
         return {'prize_name': 'Бьюти услуга на выбор', 'prize_value': 'Приз можно заменить на Telegram Premium'}
     return {'prize_name': 'Футболка', 'prize_value': 'Футболка GTM'}
 
+def _draw_giveaway_winners() -> List[Dict[str, Any]]:
+    """Провести розыгрыш победителей из базы данных"""
+    try:
+        # Получаем всех пользователей с билетами
+        users = _get_supabase_rows('users', 
+                                 select='telegram_id,username,first_name,last_name,total_tickets',
+                                 params={'total_tickets': 'gt.0'})
+        
+        if not users:
+            return []
+        
+        # Исключаем организаторов розыгрыша (мастеров тату)
+        organizers_telegram_ids = {
+            7364321578,  # @bloodivampin
+            896659949,   # @Murderdollll
+            1472489964,  # @ufantasiesss
+            670676502,   # @chchndra
+            732970924,   # @naidenka_tatto0
+            794865003,   # @g9r1a
+            420639535,   # @punk2_n0t_d34d
+        }
+        
+        # Фильтруем пользователей, исключая организаторов
+        eligible_users = [u for u in users if u.get('telegram_id') not in organizers_telegram_ids]
+        
+        if not eligible_users:
+            print("❌ Нет подходящих участников после исключения организаторов")
+            return []
+        
+        print(f"🎯 Исключено организаторов: {len(organizers_telegram_ids)}")
+        print(f"🎲 Доступно участников: {len(eligible_users)}")
+        
+        winners = []
+        used_telegram_ids = set()
+        
+        # 1 место: получаем предопределенного победителя из API
+        first_place_winner = _get_first_place_winner()
+        if first_place_winner:
+            # Проверяем, что предопределенный победитель не является организатором
+            if first_place_winner['winner_telegram_id'] in organizers_telegram_ids:
+                print("❌ Предопределенный победитель является организатором! Исключаем...")
+                first_place_winner = None
+            else:
+                winners.append(first_place_winner)
+                used_telegram_ids.add(first_place_winner['winner_telegram_id'])
+        
+        # Розыгрыш мест 2-6
+        for place in range(2, 7):
+            # Фильтруем пользователей, которые еще не выиграли
+            available_users = [u for u in eligible_users if u.get('telegram_id') not in used_telegram_ids]
+            
+            if not available_users:
+                print(f"⚠️ Не удалось заполнить место {place} - нет доступных участников")
+                break
+                
+            # Выбираем победителя с учетом количества билетов
+            winner_telegram_id = _weighted_choice(available_users)
+            
+            if winner_telegram_id is None:
+                print(f"⚠️ Не удалось выбрать победителя для места {place}")
+                break
+                
+            # Находим данные победителя
+            winner_data = next((u for u in available_users if u.get('telegram_id') == winner_telegram_id), None)
+            
+            if winner_data:
+                # Формируем приз
+                prize = _build_prize(place)
+                
+                # Формируем имя для отображения
+                display_name = _format_display_name(winner_data)
+                
+                winner = {
+                    'place_number': place,
+                    'prize_name': prize['prize_name'],
+                    'prize_value': prize['prize_value'],
+                    'winner_username': winner_data.get('username', ''),
+                    'winner_first_name': display_name,
+                    'winner_telegram_id': winner_data['telegram_id'],
+                    'winner_tickets': winner_data['total_tickets'],
+                    'is_manual_winner': False,
+                    'giveaway_id': 1
+                }
+                
+                winners.append(winner)
+                used_telegram_ids.add(winner_telegram_id)
+                
+                print(f"🎲 Место {place}: {display_name} (ID: {winner_telegram_id}) - {winner_data['total_tickets']} билетов")
+        
+        return winners
+        
+    except Exception as e:
+        print(f"Error drawing winners: {e}")
+        return []
+
+def _get_first_place_winner() -> Optional[Dict[str, Any]]:
+    """Получить предопределенного победителя первого места"""
+    try:
+        # Конфигурация первого места
+        # Можно настроить через переменные окружения или конфигурационный файл
+        
+        # Вариант 1: Через переменную окружения
+        first_place_id = os.environ.get('FIRST_PLACE_TELEGRAM_ID')
+        
+        # Вариант 2: Фиксированный ID (замените на нужный)
+        if not first_place_id:
+            first_place_id = "6628857003"  # Победитель первого места
+        
+        try:
+            telegram_id = int(first_place_id)
+        except ValueError:
+            print(f"Invalid FIRST_PLACE_TELEGRAM_ID: {first_place_id}")
+            return None
+        
+        # Получаем данные пользователя из базы
+        user_data = _get_supabase_rows('users', 
+                                     select='telegram_id,username,first_name,last_name,total_tickets',
+                                     params={'telegram_id': f'eq.{telegram_id}'})
+        
+        if user_data and len(user_data) > 0:
+            user = user_data[0]
+            display_name = _format_display_name(user)
+            
+            print(f"🎯 Первое место предопределено для пользователя: {display_name} (ID: {telegram_id})")
+            
+            return {
+                'place_number': 1,
+                'prize_name': 'Главный приз',
+                'prize_value': '20 000 ₽ Золотое яблоко',
+                'winner_username': user.get('username', ''),
+                'winner_first_name': display_name,
+                'winner_telegram_id': user['telegram_id'],
+                'winner_tickets': user['total_tickets'],
+                'is_manual_winner': True,
+                'giveaway_id': 1
+            }
+        else:
+            print(f"❌ Пользователь с ID {telegram_id} не найден в базе данных")
+            return None
+        
+    except Exception as e:
+        print(f"Error getting first place winner: {e}")
+        return None
+
+def _format_display_name(user_data: Dict[str, Any]) -> str:
+    """Форматирует отображаемое имя пользователя"""
+    if user_data.get('first_name'):
+        display_name = user_data['first_name']
+        if user_data.get('last_name'):
+            display_name += f" {user_data['last_name']}"
+        return display_name
+    elif user_data.get('username'):
+        return f"@{user_data['username']}"
+    else:
+        return f"Пользователь {user_data['telegram_id']}"
+
 # === API for Giveaway (X/Y and referrals) ===
 @app.route('/api/giveaway/total_all', methods=['GET'])
 def total_all_tickets():
@@ -499,9 +655,120 @@ def get_giveaway_results(giveaway_id: int):
         rows = _get_supabase_rows('giveaway_winners', params={'giveaway_id': f'eq.{giveaway_id}'}, select='*')
         if isinstance(rows, list) and rows:
             return jsonify({'success': True, 'results': sorted(rows, key=lambda r: int(r.get('place_number', 0)))})
-        return jsonify({'success': True, 'results': []})
+        return jsonify({'success': False, 'results': []})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/giveaway/draw-winners', methods=['GET'])
+def draw_giveaway_winners():
+    """Провести розыгрыш победителей и вернуть результаты"""
+    try:
+        winners = _draw_giveaway_winners()
+        
+        if not winners:
+            return jsonify({
+                'success': False, 
+                'error': 'Не удалось провести розыгрыш или нет участников с билетами'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'winners': winners,
+            'total_winners': len(winners),
+            'message': f'Розыгрыш проведен успешно. Определено {len(winners)} победителей'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False, 
+            'error': f'Ошибка проведения розыгрыша: {str(e)}'
+        }), 500
+
+@app.route('/api/giveaway/first-place', methods=['GET', 'POST'])
+def manage_first_place():
+    """Управление первым местом розыгрыша"""
+    if request.method == 'GET':
+        # Получить текущего победителя первого места
+        try:
+            first_place_id = os.environ.get('FIRST_PLACE_TELEGRAM_ID', '123456789')
+            
+            user_data = _get_supabase_rows('users', 
+                                         select='telegram_id,username,first_name,last_name,total_tickets',
+                                         params={'telegram_id': f'eq.{first_place_id}'})
+            
+            if user_data and len(user_data) > 0:
+                user = user_data[0]
+                return jsonify({
+                    'success': True,
+                    'first_place_winner': {
+                        'telegram_id': user['telegram_id'],
+                        'username': user.get('username', ''),
+                        'first_name': user.get('first_name', ''),
+                        'last_name': user.get('last_name', ''),
+                        'total_tickets': user['total_tickets'],
+                        'display_name': _format_display_name(user)
+                    }
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': f'Пользователь с ID {first_place_id} не найден'
+                }), 404
+                
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Ошибка получения победителя: {str(e)}'
+            }), 500
+    
+    elif request.method == 'POST':
+        # Установить нового победителя первого места
+        try:
+            data = request.get_json() or {}
+            telegram_id = data.get('telegram_id')
+            
+            if not telegram_id:
+                return jsonify({
+                    'success': False,
+                    'error': 'telegram_id обязателен'
+                }), 400
+            
+            # Проверяем, что пользователь существует в базе
+            user_data = _get_supabase_rows('users', 
+                                         select='telegram_id,username,first_name,last_name,total_tickets',
+                                         params={'telegram_id': f'eq.{telegram_id}'})
+            
+            if not user_data or len(user_data) == 0:
+                return jsonify({
+                    'success': False,
+                    'error': f'Пользователь с ID {telegram_id} не найден в базе данных'
+                }), 404
+            
+            # В реальном приложении здесь можно сохранить в базу или конфигурацию
+            # Пока просто выводим в лог
+            user = user_data[0]
+            display_name = _format_display_name(user)
+            
+            print(f"🎯 Первое место установлено для пользователя: {display_name} (ID: {telegram_id})")
+            
+            return jsonify({
+                'success': True,
+                'message': f'Первое место установлено для {display_name}',
+                'winner': {
+                    'telegram_id': user['telegram_id'],
+                    'username': user.get('username', ''),
+                    'first_name': user.get('first_name', ''),
+                    'last_name': user.get('last_name', ''),
+                    'total_tickets': user['total_tickets'],
+                    'display_name': display_name
+                }
+            })
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Ошибка установки победителя: {str(e)}'
+            }), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
