@@ -557,6 +557,52 @@ def health_check():
     """Проверка работоспособности API"""
     return jsonify({"status": "ok", "message": "Rating API is working"})
 
+@app.route('/api/debug/tables', methods=['GET'])
+def debug_tables():
+    """Отладочная информация о таблицах в базе данных"""
+    try:
+        tables_info = {}
+        
+        # Проверяем таблицу giveaways
+        try:
+            giveaways = _get_supabase_rows('giveaways', select='*')
+            tables_info['giveaways'] = {
+                'exists': True,
+                'count': len(giveaways) if giveaways else 0,
+                'sample': giveaways[0] if giveaways else None
+            }
+        except Exception as e:
+            tables_info['giveaways'] = {
+                'exists': False,
+                'error': str(e)
+            }
+        
+        # Проверяем таблицу giveaway_winners
+        try:
+            winners = _get_supabase_rows('giveaway_winners', select='*')
+            tables_info['giveaway_winners'] = {
+                'exists': True,
+                'count': len(winners) if winners else 0,
+                'sample': winners[0] if winners else None
+            }
+        except Exception as e:
+            tables_info['giveaway_winners'] = {
+                'exists': False,
+                'error': str(e)
+            }
+        
+        return jsonify({
+            'success': True,
+            'tables': tables_info,
+            'supabase_url': SUPABASE_URL
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 
 # === Giveaway Winners Generation and Retrieval ===
 
@@ -572,6 +618,26 @@ def _save_giveaway_results_to_cache(winners: List[Dict[str, Any]]) -> None:
         # Сохраняем в базу данных для постоянного хранения
         print("💾 Сохраняем результаты розыгрыша в базу данных...")
         
+        # Сначала проверяем, существует ли таблица giveaways
+        try:
+            giveaway_check = _get_supabase_rows('giveaways', select='id', params={'id': 'eq.1'})
+            if not giveaway_check:
+                print("❌ Таблица giveaways не содержит запись с id=1. Создаем...")
+                # Создаем запись в таблице giveaways
+                giveaway_data = {
+                    'id': 1,
+                    'title': 'GTM Giveaway 2025',
+                    'description': 'Основной розыгрыш Gotham\'s Top Model с призами на сумму более 130,000₽',
+                    'prize_amount': '130000.00',
+                    'start_date': '2024-01-01T00:00:00+00:00',
+                    'end_date': '2025-08-18T20:00:00+00:00',
+                    'is_active': True
+                }
+                _insert_supabase_rows('giveaways', [giveaway_data])
+                print("✅ Запись в таблице giveaways создана")
+        except Exception as e:
+            print(f"⚠️ Не удалось проверить/создать запись в giveaways: {e}")
+        
         # Сначала очищаем старые результаты
         _clear_existing_giveaway_results()
         
@@ -586,8 +652,8 @@ def _save_giveaway_results_to_cache(winners: List[Dict[str, Any]]) -> None:
                 'prize_name': winner['prize_name'],
                 'prize_value': winner['prize_value'],
                 'winner_tickets': winner.get('winner_tickets', 0),
-                'is_manual_winner': winner.get('is_manual_winner', False),
-                'created_at': 'now()'
+                'is_manual_winner': winner.get('is_manual_winner', False)
+                # Убираем created_at - пусть Supabase сам установит
             }
             
             try:
@@ -620,8 +686,11 @@ def _clear_existing_giveaway_results() -> None:
             print("🗑️ Старые результаты розыгрыша очищены из базы данных")
         else:
             print(f"⚠️ Не удалось очистить старые результаты: {response.status_code}")
+            if response.content:
+                print(f"📝 Детали ошибки: {response.text}")
     except Exception as e:
         print(f"❌ Ошибка очистки старых результатов: {e}")
+        # Продолжаем работу даже при ошибке очистки
 
 def _get_cached_giveaway_results() -> Optional[List[Dict[str, Any]]]:
     """Получить кэшированные результаты розыгрыша (сначала из БД, потом из кэша)"""
@@ -826,6 +895,35 @@ def draw_giveaway_winners():
         return jsonify({
             'success': False, 
             'error': f'Ошибка проведения розыгрыша: {str(e)}'
+        }), 500
+
+@app.route('/api/giveaway/clear-winners', methods=['GET', 'POST'])
+def clear_giveaway_winners():
+    """Очистить результаты розыгрыша (GET и POST методы)"""
+    try:
+        global _giveaway_results_cache, _giveaway_draw_completed
+        
+        # Очищаем кэш в памяти
+        _giveaway_results_cache = None
+        _giveaway_draw_completed = False
+        
+        # Очищаем результаты из базы данных
+        try:
+            _clear_existing_giveaway_results()
+            print("🗑️ Результаты розыгрыша очищены из базы данных")
+        except Exception as e:
+            print(f"⚠️ Не удалось очистить БД: {e}")
+        
+        print("🔄 Результаты розыгрыша очищены (память + БД)")
+        return jsonify({
+            'success': True,
+            'message': 'Результаты розыгрыша очищены. Следующий запрос проведет новый розыгрыш.',
+            'cleared_at': 'now()'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Ошибка очистки розыгрыша: {str(e)}'
         }), 500
 
 @app.route('/api/giveaway/reset-draw', methods=['POST'])
