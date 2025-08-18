@@ -201,7 +201,7 @@ def _draw_giveaway_winners() -> List[Dict[str, Any]]:
                     'winner_first_name': display_name,
                     'winner_telegram_id': winner_data['telegram_id'],
                     'winner_tickets': winner_data['total_tickets'],
-                    'is_manual_winner': False,
+                    'is_first_winner': False,
                     'giveaway_id': 1
                 }
                 
@@ -254,7 +254,7 @@ def _get_first_place_winner() -> Optional[Dict[str, Any]]:
                 'winner_first_name': display_name,
                 'winner_telegram_id': user['telegram_id'],
                 'winner_tickets': user['total_tickets'],
-                'is_manual_winner': True,
+                'is_first_winner': True,
                 'giveaway_id': 1
             }
         else:
@@ -652,15 +652,20 @@ def _save_giveaway_results_to_cache(winners: List[Dict[str, Any]]) -> None:
                 'prize_name': winner['prize_name'],
                 'prize_value': winner['prize_value'],
                 'winner_tickets': winner.get('winner_tickets', 0),
-                'is_manual_winner': winner.get('is_manual_winner', False)
+                'is_first_winner': winner.get('is_first_winner', False)
                 # Убираем created_at - пусть Supabase сам установит
             }
             
             try:
-                _insert_supabase_rows('giveaway_winners', [winner_data])
+                print(f"💾 Сохраняем победителя места {winner['place_number']} в БД...")
+                print(f"📝 Данные для сохранения: {winner_data}")
+                
+                result = _insert_supabase_rows('giveaway_winners', [winner_data])
                 print(f"✅ Сохранен победитель места {winner['place_number']}: {winner.get('winner_first_name', 'Unknown')}")
+                print(f"📊 Результат сохранения: {result}")
             except Exception as e:
                 print(f"❌ Ошибка сохранения победителя места {winner['place_number']}: {e}")
+                print(f"🔍 Детали ошибки: {type(e).__name__}: {str(e)}")
         
         # Обновляем кэш в памяти для быстрого доступа
         _giveaway_results_cache = winners
@@ -694,7 +699,7 @@ def _clear_existing_giveaway_results() -> None:
 
 def _get_cached_giveaway_results() -> Optional[List[Dict[str, Any]]]:
     """Получить кэшированные результаты розыгрыша (сначала из БД, потом из кэша)"""
-    global _giveaway_results_cache
+    global _giveaway_results_cache, _giveaway_draw_completed
     
     try:
         # Сначала пытаемся получить из базы данных
@@ -707,30 +712,44 @@ def _get_cached_giveaway_results() -> Optional[List[Dict[str, Any]]]:
             # Сортируем по месту
             sorted_results = sorted(db_results, key=lambda x: int(x.get('place_number', 0)))
             
-            # Обновляем кэш в памяти
+            # Обновляем кэш в памяти и флаг завершения
             _giveaway_results_cache = sorted_results
             _giveaway_draw_completed = True
             
             print(f"✅ Найдено {len(sorted_results)} результатов в базе данных")
             return sorted_results
         
-        # Если в БД нет результатов, возвращаем кэш в памяти
+        # Если в БД нет результатов, проверяем кэш в памяти
         if _giveaway_results_cache:
-            print("📋 Возвращаем результаты из кэша в памяти")
+            print("📋 БД пуста, возвращаем результаты из кэша в памяти")
+            # Обновляем флаг завершения на основе кэша
+            _giveaway_draw_completed = True
             return _giveaway_results_cache
         
+        # Ни в БД, ни в кэше нет результатов
         print("❌ Результаты розыгрыша не найдены ни в БД, ни в кэше")
+        _giveaway_draw_completed = False
         return None
         
     except Exception as e:
         print(f"❌ Ошибка получения результатов из БД: {e}")
-        # При ошибке БД возвращаем кэш в памяти
-        return _giveaway_results_cache
+        # При ошибке БД проверяем кэш в памяти
+        if _giveaway_results_cache:
+            print("📋 При ошибке БД используем кэш в памяти")
+            _giveaway_draw_completed = True
+            return _giveaway_results_cache
+        else:
+            print("❌ Ни БД, ни кэш недоступны")
+            _giveaway_draw_completed = False
+            return None
 
 def _is_giveaway_draw_completed() -> bool:
     """Проверка, был ли уже проведен розыгрыш (проверяем БД)"""
+    global _giveaway_draw_completed
+    
     try:
         # Проверяем наличие результатов в базе данных
+        print("🔍 Проверяем статус розыгрыша в БД...")
         db_results = _get_supabase_rows('giveaway_winners', 
                                       select='*',
                                       params={'giveaway_id': 'eq.1'})
@@ -739,17 +758,33 @@ def _is_giveaway_draw_completed() -> bool:
             has_results = len(db_results) > 0
             
             # Обновляем глобальную переменную
-            global _giveaway_draw_completed
             _giveaway_draw_completed = has_results
             
+            print(f"✅ В БД найдено {len(db_results)} результатов розыгрыша")
             return has_results
         
-        # Если БД недоступна, используем кэш в памяти
-        return _giveaway_draw_completed
+        # Если БД пуста, проверяем кэш в памяти
+        if _giveaway_results_cache:
+            print(f"📋 БД пуста, но в кэше есть {len(_giveaway_results_cache)} результатов")
+            _giveaway_draw_completed = True
+            return True
+        
+        # Ни в БД, ни в кэше нет результатов
+        print("❌ Ни в БД, ни в кэше нет результатов розыгрыша")
+        _giveaway_draw_completed = False
+        return False
         
     except Exception as e:
         print(f"❌ Ошибка проверки статуса розыгрыша: {e}")
-        return _giveaway_draw_completed
+        # При ошибке БД используем кэш в памяти
+        if _giveaway_results_cache:
+            print(f"📋 При ошибке БД используем кэш: {len(_giveaway_results_cache)} результатов")
+            _giveaway_draw_completed = True
+            return True
+        else:
+            print("❌ Ни БД, ни кэш недоступны")
+            _giveaway_draw_completed = False
+            return False
 
 @app.route('/api/giveaway/generate-results', methods=['POST'])
 def generate_giveaway_results():
@@ -800,7 +835,7 @@ def generate_giveaway_results():
                 'winner_first_name': u.get('first_name') or '',
                 'prize_name': p['prize_name'],
                 'prize_value': p['prize_value'],
-                'is_manual_winner': bool(manual_tid and manual_tid == first_tid),
+                'is_first_winner': bool(manual_tid and manual_tid == first_tid),
             })
 
         used_ids = {w['winner_telegram_id'] for w in winners}
@@ -830,7 +865,7 @@ def generate_giveaway_results():
                 'winner_first_name': u.get('first_name') or '',
                 'prize_name': p['prize_name'],
                 'prize_value': p['prize_value'],
-                'is_manual_winner': False,
+                'is_first_winner': False,
             })
             used_ids.add(candidate_id)
 
@@ -880,7 +915,7 @@ def draw_giveaway_winners():
                 'error': 'Не удалось провести розыгрыш или нет участников с билетами'
             }), 404
         
-        # Сохраняем результаты в кэш
+        # Сохраняем результаты в кэш И в БД
         _save_giveaway_results_to_cache(winners)
         
         return jsonify({
@@ -892,6 +927,7 @@ def draw_giveaway_winners():
         })
         
     except Exception as e:
+        print(f"❌ Ошибка в draw_giveaway_winners: {e}")
         return jsonify({
             'success': False, 
             'error': f'Ошибка проведения розыгрыша: {str(e)}'
