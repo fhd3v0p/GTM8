@@ -557,6 +557,28 @@ def health_check():
 
 
 # === Giveaway Winners Generation and Retrieval ===
+
+# Глобальная переменная для кэширования результатов розыгрыша
+_giveaway_results_cache = None
+_giveaway_draw_completed = False
+
+def _save_giveaway_results_to_cache(winners: List[Dict[str, Any]]) -> None:
+    """Сохранить результаты розыгрыша в кэш"""
+    global _giveaway_results_cache, _giveaway_draw_completed
+    _giveaway_results_cache = winners
+    _giveaway_draw_completed = True
+    print(f"🎯 Результаты розыгрыша сохранены в кэш. Победителей: {len(winners)}")
+
+def _get_cached_giveaway_results() -> Optional[List[Dict[str, Any]]]:
+    """Получить кэшированные результаты розыгрыша"""
+    global _giveaway_results_cache
+    return _giveaway_results_cache
+
+def _is_giveaway_draw_completed() -> bool:
+    """Проверка, был ли уже проведен розыгрыш"""
+    global _giveaway_draw_completed
+    return _giveaway_draw_completed
+
 @app.route('/api/giveaway/generate-results', methods=['POST'])
 def generate_giveaway_results():
     try:
@@ -663,6 +685,21 @@ def get_giveaway_results(giveaway_id: int):
 def draw_giveaway_winners():
     """Провести розыгрыш победителей и вернуть результаты"""
     try:
+        # Проверяем, был ли уже проведен розыгрыш
+        if _is_giveaway_draw_completed():
+            cached_results = _get_cached_giveaway_results()
+            if cached_results:
+                print("🎯 Возвращаем кэшированные результаты розыгрыша")
+                return jsonify({
+                    'success': True,
+                    'winners': cached_results,
+                    'total_winners': len(cached_results),
+                    'message': f'Возвращены сохраненные результаты розыгрыша. Определено {len(cached_results)} победителей',
+                    'from_cache': True
+                })
+        
+        # Если розыгрыш еще не проводился - проводим новый
+        print("🎲 Проводим новый розыгрыш...")
         winners = _draw_giveaway_winners()
         
         if not winners:
@@ -671,17 +708,55 @@ def draw_giveaway_winners():
                 'error': 'Не удалось провести розыгрыш или нет участников с билетами'
             }), 404
         
+        # Сохраняем результаты в кэш
+        _save_giveaway_results_to_cache(winners)
+        
         return jsonify({
             'success': True,
             'winners': winners,
             'total_winners': len(winners),
-            'message': f'Розыгрыш проведен успешно. Определено {len(winners)} победителей'
+            'message': f'Розыгрыш проведен успешно. Определено {len(winners)} победителей',
+            'from_cache': False
         })
         
     except Exception as e:
         return jsonify({
             'success': False, 
             'error': f'Ошибка проведения розыгрыша: {str(e)}'
+        }), 500
+
+@app.route('/api/giveaway/reset-draw', methods=['POST'])
+def reset_giveaway_draw():
+    """Сбросить результаты розыгрыша (для администраторов)"""
+    try:
+        global _giveaway_results_cache, _giveaway_draw_completed
+        _giveaway_results_cache = None
+        _giveaway_draw_completed = False
+        print("🔄 Результаты розыгрыша сброшены")
+        return jsonify({
+            'success': True,
+            'message': 'Результаты розыгрыша сброшены. Следующий запрос проведет новый розыгрыш.'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Ошибка сброса розыгрыша: {str(e)}'
+        }), 500
+
+@app.route('/api/giveaway/draw-status', methods=['GET'])
+def get_giveaway_draw_status():
+    """Получить статус розыгрыша"""
+    try:
+        return jsonify({
+            'success': True,
+            'draw_completed': _is_giveaway_draw_completed(),
+            'winners_count': len(_giveaway_results_cache) if _giveaway_results_cache else 0,
+            'message': 'Розыгрыш уже проведен' if _is_giveaway_draw_completed() else 'Розыгрыш еще не проводился'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Ошибка получения статуса: {str(e)}'
         }), 500
 
 @app.route('/api/giveaway/first-place', methods=['GET', 'POST'])
