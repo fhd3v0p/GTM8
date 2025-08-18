@@ -39,7 +39,9 @@ services:
       - gtm_network
 
   api2:
-    image: gtm8-api:latest
+    build:
+      context: ./api
+      dockerfile: Dockerfile
     container_name: gtm_api2
     restart: unless-stopped
     env_file:
@@ -52,7 +54,9 @@ services:
       - gtm_network
 
   api3:
-    image: gtm8-api:latest
+    build:
+      context: ./api
+      dockerfile: Dockerfile
     container_name: gtm_api3
     restart: unless-stopped
     env_file:
