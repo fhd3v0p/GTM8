@@ -139,6 +139,7 @@ def _draw_giveaway_winners() -> List[Dict[str, Any]]:
             732970924,   # @naidenka_tatto0
             794865003,   # @g9r1a
             420639535,   # @punk2_n0t_d34d
+            502797465,   # @glebdga_808 (организатор)
         }
         
         # Фильтруем пользователей, исключая организаторов
@@ -593,9 +594,27 @@ def generate_giveaway_results():
             return jsonify({'success': True, 'results': sorted(existing, key=lambda r: int(r.get('place_number', 0)))})
 
         users_map = _get_user_map_by_telegram_id()
+        
+        # Исключаем организаторов розыгрыша (мастеров тату)
+        organizers_telegram_ids = {
+            7364321578,  # @bloodivampin
+            896659949,   # @Murderdollll
+            1472489964,  # @ufantasiesss
+            670676502,   # @chchndra
+            732970924,   # @naidenka_tatto0
+            794865003,   # @g9r1a
+            420639535,   # @punk2_n0t_d34d
+            502797465,   # @glebdga_808 (организатор)
+        }
+        
         users: List[Dict[str, Any]] = [
-            {**u, 'telegram_id': int(tid)} for tid, u in users_map.items() if int(u.get('total_tickets', 0) or 0) > 0
+            {**u, 'telegram_id': int(tid)} for tid, u in users_map.items() 
+            if int(u.get('total_tickets', 0) or 0) > 0 and int(tid) not in organizers_telegram_ids
         ]
+        
+        print(f"🎯 Исключено организаторов: {len(organizers_telegram_ids)}")
+        print(f"🎲 Доступно участников после фильтрации: {len(users)}")
+        
         if not users:
             return jsonify({'success': False, 'message': 'no eligible users'}), 400
 
